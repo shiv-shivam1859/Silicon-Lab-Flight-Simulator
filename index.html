@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silicon Lab - Aerospace Simulator</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #020617; color: #f8fafc; overflow: hidden; height: 100vh; width: 100vw; margin: 0; display: flex; flex-direction: column; }
+        @media (min-width: 1024px) { body { flex-direction: row; } }
+        
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        #canvas-container { flex-grow: 1; position: relative; background-color: #020617; overflow: hidden; min-height: 50vh; }
+        #gl-canvas { display: block; outline: none; width: 100%; height: 100%; }
+        
+        .glass-panel { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 0.75rem; }
+        
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        input[type=range] { height: 2px; border-radius: 1px; background: rgba(255,255,255,0.1); appearance: none; cursor: pointer; }
+        input[type=range]::-webkit-slider-thumb { appearance: none; height: 12px; width: 12px; border-radius: 50%; background: #fff; border: 2px solid #0ea5e9; }
+
+        .modern-select { appearance: none; background-color: transparent; }
+        .modern-select option { background-color: #1e293b; color: #f8fafc; }
+        
+        input[type="color"] { -webkit-appearance: none; appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <aside class="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/5 bg-slate-950 flex flex-col z-50 relative shadow-2xl shrink-0 h-[50vh] lg:h-full">
+        
+        <div class="px-6 pt-6 pb-4 shrink-0 flex items-center gap-3 border-b border-white/5">
+            <div class="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.4)] flex items-center justify-center">
+                <img src="Silicon Logo.png" alt="Logo" class="w-6 h-6 object-contain drop-shadow-md">
+            </div>
+            <div>
+                <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Visualizer v1.0.0</p>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 pt-4 custom-scrollbar space-y-5">
+            
+            <section class="glass-panel p-4 space-y-4">
+                <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Airframe</label>
+                    <input type="color" id="i-colBody" value="#e2e8f0" onchange="updateAll()">
+                </div>
+                <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length (cm)</span><span id="v-bodyLen" class="text-cyan-400 mono">40</span></div><input type="range" id="i-bodyLen" min="10" max="100" value="40" class="w-full" oninput="updateAll()"></div>
+                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Dia (mm)</span><span id="v-bodyDia" class="text-cyan-400 mono">24.8</span></div><input type="range" id="i-bodyDia" min="10" max="100" value="24.8" step="0.1" class="w-full" oninput="updateAll()"></div>
+                </div>
+            </section>
+
+            <section class="glass-panel p-4 space-y-4">
+                <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Nose Cone</label>
+                    <input type="color" id="i-colNose" value="#ef4444" onchange="updateAll()">
+                </div>
+                <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <div class="col-span-2 flex flex-col gap-1.5">
+                        <select id="i-noseType" class="modern-select w-full bg-slate-900/50 border border-white/10 rounded-md p-2 text-xs text-white" onchange="updateAll()">
+                            <option value="ogive">Tangent Ogive</option><option value="conical">Conical</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length (cm)</span><span id="v-noseLen" class="text-cyan-400 mono">10</span></div><input type="range" id="i-noseLen" min="2" max="30" value="10" class="w-full" oninput="updateAll()"></div>
+                </div>
+            </section>
+
+            <section class="glass-panel p-4 space-y-4">
+                <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Fins</label>
+                    <input type="color" id="i-colFins" value="#ef4444" onchange="updateAll()">
+                </div>
+                <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <div class="col-span-2 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Count</span><span id="v-finNum" class="text-cyan-400 mono">3</span></div><input type="range" id="i-finNum" min="3" max="6" value="3" step="1" class="w-full" oninput="updateAll()"></div>
+                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Root (cm)</span><span id="v-finRoot" class="text-cyan-400 mono">5</span></div><input type="range" id="i-finRoot" min="2" max="20" value="5" step="0.1" class="w-full" oninput="updateAll()"></div>
+                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Tip (cm)</span><span id="v-finTip" class="text-cyan-400 mono">2</span></div><input type="range" id="i-finTip" min="0" max="15" value="2" step="0.1" class="w-full" oninput="updateAll()"></div>
+                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Span (cm)</span><span id="v-finSpan" class="text-cyan-400 mono">2.5</span></div><input type="range" id="i-finSpan" min="1" max="15" value="2.5" step="0.1" class="w-full" oninput="updateAll()"></div>
+                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Sweep (cm)</span><span id="v-finSweep" class="text-cyan-400 mono">1.5</span></div><input type="range" id="i-finSweep" min="0" max="10" value="1.5" step="0.1" class="w-full" oninput="updateAll()"></div>
+                </div>
+            </section>
+        </div>
+    </aside>
+
+    <main id="canvas-container">
+        <canvas id="gl-canvas"></canvas>
+        
+        <div class="absolute top-6 right-6 z-50">
+            <button onclick="exportSTL()" class="px-4 py-2 text-[10px] font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 rounded-lg text-white flex items-center gap-2 transition-colors shadow-lg">
+                <i data-lucide="download-cloud" class="w-4 h-4"></i> Export STL
+            </button>
+        </div>
+    </main>
+
+    <script>
+        let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
+        
+        let scene, camera, renderer, rocketGroup, controls;
+
+        function initThree() {
+            const container = document.getElementById('canvas-container'), canvas = document.getElementById('gl-canvas');
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x020617);
+            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 20000);
+            
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6)); 
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(20, 100, 20); scene.add(dirLight);
+            scene.add(new THREE.GridHelper(100, 100, 0x1e293b, 0x0f172a));
+            
+            controls = new THREE.OrbitControls(camera, renderer.domElement); 
+            controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 + 0.1;
+            
+            rocketGroup = new THREE.Group(); scene.add(rocketGroup);
+            
+            window.addEventListener('resize', () => { 
+                camera.aspect = container.clientWidth / container.clientHeight; 
+                camera.updateProjectionMatrix(); 
+                renderer.setSize(container.clientWidth, container.clientHeight); 
+            });
+            
+            updateAll();
+            camera.position.set(30, 20, 30); controls.target.set(0, 20, 0); controls.update();
+            animate();
+        }
+
+        function updateDisplayValues() {
+            ['bodyLen', 'bodyDia', 'noseLen', 'finNum', 'finRoot', 'finTip', 'finSpan', 'finSweep'].forEach(k => {
+                document.getElementById(`v-${k}`).innerText = design[k];
+            });
+        }
+
+        function syncInputsToState() {
+            ['bodyLen', 'bodyDia', 'noseLen', 'finNum', 'finRoot', 'finTip', 'finSpan', 'finSweep'].forEach(k => {
+                design[k] = parseFloat(document.getElementById(`i-${k}`).value);
+            });
+            design.noseType = document.getElementById('i-noseType').value;
+            design.cBody = document.getElementById('i-colBody').value;
+            design.cNose = document.getElementById('i-colNose').value;
+            design.cFins = document.getElementById('i-colFins').value;
+            updateDisplayValues();
+        }
+
+        function rebuildRocketMesh() {
+            while(rocketGroup.children.length > 0) rocketGroup.remove(rocketGroup.children[0]); 
+            
+            const R = (design.bodyDia / 10) / 2; const L = design.bodyLen;
+            const mB = new THREE.MeshStandardMaterial({ color: design.cBody, roughness: 0.3, metalness: 0.4 });
+            const mN = new THREE.MeshStandardMaterial({ color: design.cNose, roughness: 0.3, metalness: 0.2 });
+            const mF = new THREE.MeshStandardMaterial({ color: design.cFins, roughness: 0.5, metalness: 0.1 });
+            
+            // Body Tube
+            const tube = new THREE.Mesh(new THREE.CylinderGeometry(R, R, L, 32), mB);
+            tube.position.y = L/2; rocketGroup.add(tube);
+            
+            // Nose Cone
+            const pts = [];
+            for (let i = 0; i <= 32; i++) {
+                const t = i / 32; const y = t * design.noseLen; let x;
+                if (design.noseType === 'conical') x = R * (1 - t);
+                else x = R * Math.sqrt(1 - Math.pow(t, 2));
+                pts.push(new THREE.Vector2(x, y));
+            }
+            const nose = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), mN); 
+            nose.position.y = L; rocketGroup.add(nose);
+            
+            // Fins
+            const fS = new THREE.Shape(); 
+            fS.moveTo(0, 0); fS.lineTo(design.finSpan, design.finSweep); fS.lineTo(design.finSpan, design.finSweep + design.finTip); fS.lineTo(0, design.finRoot); fS.lineTo(0, 0);
+            const fG = new THREE.ExtrudeGeometry(fS, { depth: 0.3, bevelEnabled: false }); 
+            fG.translate(R - 0.05, 0, -0.15); 
+            
+            for(let i=0; i<design.finNum; i++) { 
+                const fin = new THREE.Mesh(fG, mF); fin.rotation.y = (i * Math.PI * 2) / design.finNum; rocketGroup.add(fin); 
+            }
+        }
+
+        function exportSTL() {
+            if (!rocketGroup || rocketGroup.children.length === 0) return;
+            const exporter = new THREE.STLExporter();
+            const stlString = exporter.parse(rocketGroup);
+            const blob = new Blob([stlString], { type: 'text/plain' }); 
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a'); 
+            link.style.display = 'none'; link.href = url; link.download = 'SiliconLab_v1.stl';
+            document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+        }
+
+        function updateAll() { syncInputsToState(); rebuildRocketMesh(); }
+        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+        
+        window.onload = () => { lucide.createIcons(); initThree(); };
+    </script>
+</body>
+</html>
