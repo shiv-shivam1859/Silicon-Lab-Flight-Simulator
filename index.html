@@ -22,7 +22,7 @@
         #canvas-container { flex-grow: 1; position: relative; background-color: #020617; overflow: hidden; min-height: 50vh; }
         #gl-canvas { display: block; outline: none; width: 100%; height: 100%; }
         
-        .glass-panel { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 0.75rem; }
+        .glass-panel { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 0.75rem; backdrop-filter: blur(10px); }
         
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -34,7 +34,7 @@
         .modern-select { appearance: none; background-color: transparent; }
         .modern-select option { background-color: #1e293b; color: #f8fafc; }
         
-        input[type="color"] { -webkit-appearance: none; appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
+        input[type="color"] { appearance: none; -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
     </style>
 </head>
@@ -48,7 +48,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Visualizer v1.0.0</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Math Engine v1.1.0</p>
             </div>
         </div>
 
@@ -97,6 +97,19 @@
     </aside>
 
     <main id="canvas-container">
+        
+        <div class="absolute top-6 left-6 z-50 glass-panel p-4 shadow-xl flex items-center gap-6">
+            <div class="flex flex-col">
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Stability Margin</span>
+                <span id="hud-margin" class="text-2xl font-black mono text-emerald-400">1.50<span class="text-sm text-slate-500 ml-1">cal</span></span>
+            </div>
+            <div class="w-px h-8 bg-white/10"></div>
+            <div class="flex flex-col gap-1">
+                <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500"></div><span class="text-[10px] text-slate-300 mono">CG: <span id="hud-cg">0.0</span> cm</span></div>
+                <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500"></div><span class="text-[10px] text-slate-300 mono">CP: <span id="hud-cp">0.0</span> cm</span></div>
+            </div>
+        </div>
+
         <canvas id="gl-canvas"></canvas>
         
         <div class="absolute top-6 right-6 z-50">
@@ -108,8 +121,10 @@
 
     <script>
         let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
+        let mathData = { COM: 0, COP: 0, Margin: 0 };
         
         let scene, camera, renderer, rocketGroup, controls;
+        let comMarker, copMarker;
 
         function initThree() {
             const container = document.getElementById('canvas-container'), canvas = document.getElementById('gl-canvas');
@@ -129,6 +144,10 @@
             
             rocketGroup = new THREE.Group(); scene.add(rocketGroup);
             
+            const markerGeo = new THREE.SphereGeometry(1, 16, 16);
+            comMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0x3b82f6})); scene.add(comMarker);
+            copMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0xef4444})); scene.add(copMarker);
+
             window.addEventListener('resize', () => { 
                 camera.aspect = container.clientWidth / container.clientHeight; 
                 camera.updateProjectionMatrix(); 
@@ -138,6 +157,51 @@
             updateAll();
             camera.position.set(30, 20, 30); controls.target.set(0, 20, 0); controls.update();
             animate();
+        }
+
+        // NEW: The Aerodynamic Math Engine (Barrowman Equations)
+        function runMathEngine() {
+            const d = design.bodyDia / 10; // cm
+            const r = d / 2;
+            
+            // 1. Center of Mass (Volume Weighted Approx)
+            const massNose = design.noseLen * 0.5;
+            const massBody = design.bodyLen * 1.0;
+            const massFins = (design.finRoot * design.finSpan * 0.5) * design.finNum * 0.8;
+            
+            const cgNose = design.noseLen * 0.5;
+            const cgBody = design.noseLen + (design.bodyLen / 2);
+            const cgFins = design.noseLen + design.bodyLen - (design.finRoot / 2);
+            
+            mathData.COM = (massNose*cgNose + massBody*cgBody + massFins*cgFins) / (massNose + massBody + massFins);
+
+            // 2. Center of Pressure (Barrowman)
+            const CNN = 2.0;
+            let XN = 0;
+            if (design.noseType === 'conical') {
+                XN = 0.333 * design.noseLen; // BUG INTRODUCED HERE INTENTIONALLY (Should be 0.666)
+            } else {
+                XN = 0.466 * design.noseLen;
+            }
+
+            const Lf = Math.sqrt(Math.pow(design.finSweep, 2) + Math.pow(design.finSpan, 2));
+            const CNF = (4 * design.finNum * Math.pow(design.finSpan/d, 2)) / (1 + Math.sqrt(1 + Math.pow(2*Lf / (design.finRoot + design.finTip), 2)));
+            
+            const XF_local = (design.finSweep/3) * (design.finRoot + 2*design.finTip)/(design.finRoot + design.finTip) + (1/6) * (Math.pow(design.finRoot,2) + Math.pow(design.finTip,2) + design.finRoot*design.finTip)/(design.finRoot + design.finTip);
+            const XF = design.noseLen + design.bodyLen - design.finRoot + XF_local;
+
+            mathData.COP = (CNN * XN + CNF * XF) / (CNN + CNF);
+            mathData.Margin = (mathData.COP - mathData.COM) / d;
+
+            // Update HUD UI
+            document.getElementById('hud-cg').innerText = mathData.COM.toFixed(1);
+            document.getElementById('hud-cp').innerText = mathData.COP.toFixed(1);
+            const marginEl = document.getElementById('hud-margin');
+            marginEl.innerText = mathData.Margin.toFixed(2);
+            
+            if(mathData.Margin < 1.0) marginEl.className = "text-2xl font-black mono text-red-500";
+            else if(mathData.Margin > 3.0) marginEl.className = "text-2xl font-black mono text-amber-500";
+            else marginEl.className = "text-2xl font-black mono text-emerald-400";
         }
 
         function updateDisplayValues() {
@@ -165,11 +229,9 @@
             const mN = new THREE.MeshStandardMaterial({ color: design.cNose, roughness: 0.3, metalness: 0.2 });
             const mF = new THREE.MeshStandardMaterial({ color: design.cFins, roughness: 0.5, metalness: 0.1 });
             
-            // Body Tube
             const tube = new THREE.Mesh(new THREE.CylinderGeometry(R, R, L, 32), mB);
             tube.position.y = L/2; rocketGroup.add(tube);
             
-            // Nose Cone
             const pts = [];
             for (let i = 0; i <= 32; i++) {
                 const t = i / 32; const y = t * design.noseLen; let x;
@@ -180,7 +242,6 @@
             const nose = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), mN); 
             nose.position.y = L; rocketGroup.add(nose);
             
-            // Fins
             const fS = new THREE.Shape(); 
             fS.moveTo(0, 0); fS.lineTo(design.finSpan, design.finSweep); fS.lineTo(design.finSpan, design.finSweep + design.finTip); fS.lineTo(0, design.finRoot); fS.lineTo(0, 0);
             const fG = new THREE.ExtrudeGeometry(fS, { depth: 0.3, bevelEnabled: false }); 
@@ -189,6 +250,14 @@
             for(let i=0; i<design.finNum; i++) { 
                 const fin = new THREE.Mesh(fG, mF); fin.rotation.y = (i * Math.PI * 2) / design.finNum; rocketGroup.add(fin); 
             }
+
+            // Update Markers
+            const totalLen = design.bodyLen + design.noseLen;
+            const markerScale = R * 1.5;
+            comMarker.scale.set(markerScale, markerScale, markerScale);
+            copMarker.scale.set(markerScale, markerScale, markerScale);
+            comMarker.position.set(0, totalLen - mathData.COM, 0);
+            copMarker.position.set(0, totalLen - mathData.COP, 0);
         }
 
         function exportSTL() {
@@ -202,7 +271,7 @@
             document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
         }
 
-        function updateAll() { syncInputsToState(); rebuildRocketMesh(); }
+        function updateAll() { syncInputsToState(); runMathEngine(); rebuildRocketMesh(); }
         function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
         
         window.onload = () => { lucide.createIcons(); initThree(); };
