@@ -48,7 +48,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Math Engine v1.1.1</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Sim Core v1.2.0</p>
             </div>
         </div>
 
@@ -56,49 +56,52 @@
             
             <section class="glass-panel p-4 space-y-4">
                 <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Airframe</label>
-                    <input type="color" id="i-colBody" value="#e2e8f0" onchange="updateAll()">
+                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Airframe & Geometry</label>
                 </div>
                 <div class="grid grid-cols-2 gap-x-6 gap-y-4">
                     <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length (cm)</span><span id="v-bodyLen" class="text-cyan-400 mono">40</span></div><input type="range" id="i-bodyLen" min="10" max="100" value="40" class="w-full" oninput="updateAll()"></div>
                     <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Dia (mm)</span><span id="v-bodyDia" class="text-cyan-400 mono">24.8</span></div><input type="range" id="i-bodyDia" min="10" max="100" value="24.8" step="0.1" class="w-full" oninput="updateAll()"></div>
                 </div>
-            </section>
-
-            <section class="glass-panel p-4 space-y-4">
-                <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Nose Cone</label>
-                    <input type="color" id="i-colNose" value="#ef4444" onchange="updateAll()">
-                </div>
-                <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                <div class="grid grid-cols-2 gap-x-6 gap-y-4 pt-2 border-t border-white/5">
                     <div class="col-span-2 flex flex-col gap-1.5">
                         <select id="i-noseType" class="modern-select w-full bg-slate-900/50 border border-white/10 rounded-md p-2 text-xs text-white" onchange="updateAll()">
-                            <option value="ogive">Tangent Ogive</option><option value="conical">Conical</option>
+                            <option value="ogive">Tangent Ogive Nose</option><option value="conical">Conical Nose</option>
                         </select>
                     </div>
-                    <div class="col-span-2 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length (cm)</span><span id="v-noseLen" class="text-cyan-400 mono">10</span></div><input type="range" id="i-noseLen" min="2" max="30" value="10" class="w-full" oninput="updateAll()"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-x-6 gap-y-4 pt-2 border-t border-white/5">
+                    <div class="col-span-2 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Count</span><span id="v-finNum" class="text-cyan-400 mono">3</span></div><input type="range" id="i-finNum" min="3" max="6" value="3" step="1" class="w-full" oninput="updateAll()"></div>
+                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Span (cm)</span><span id="v-finSpan" class="text-cyan-400 mono">2.5</span></div><input type="range" id="i-finSpan" min="1" max="15" value="2.5" step="0.1" class="w-full" oninput="updateAll()"></div>
                 </div>
             </section>
 
-            <section class="glass-panel p-4 space-y-4">
-                <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Fins</label>
-                    <input type="color" id="i-colFins" value="#ef4444" onchange="updateAll()">
+            <section class="glass-panel p-4 space-y-4 border border-blue-500/20 bg-blue-900/10">
+                <div class="flex justify-between items-center border-b border-blue-500/20 pb-3">
+                    <label class="text-[10px] font-bold text-blue-300 uppercase tracking-[0.15em]">Propulsion Model</label>
+                    <i data-lucide="flame" class="w-4 h-4 text-orange-500"></i>
                 </div>
-                <div class="grid grid-cols-2 gap-x-6 gap-y-4">
-                    <div class="col-span-2 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Count</span><span id="v-finNum" class="text-cyan-400 mono">3</span></div><input type="range" id="i-finNum" min="3" max="6" value="3" step="1" class="w-full" oninput="updateAll()"></div>
-                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Root (cm)</span><span id="v-finRoot" class="text-cyan-400 mono">5</span></div><input type="range" id="i-finRoot" min="2" max="20" value="5" step="0.1" class="w-full" oninput="updateAll()"></div>
-                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Tip (cm)</span><span id="v-finTip" class="text-cyan-400 mono">2</span></div><input type="range" id="i-finTip" min="0" max="15" value="2" step="0.1" class="w-full" oninput="updateAll()"></div>
-                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Span (cm)</span><span id="v-finSpan" class="text-cyan-400 mono">2.5</span></div><input type="range" id="i-finSpan" min="1" max="15" value="2.5" step="0.1" class="w-full" oninput="updateAll()"></div>
-                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Sweep (cm)</span><span id="v-finSweep" class="text-cyan-400 mono">1.5</span></div><input type="range" id="i-finSweep" min="0" max="10" value="1.5" step="0.1" class="w-full" oninput="updateAll()"></div>
+                <div class="col-span-2 flex flex-col gap-1.5">
+                    <select id="i-motor" class="modern-select w-full bg-slate-900/80 border border-blue-500/30 rounded-md p-2 text-xs text-white" onchange="updateMotorSpecs()">
+                        <option value="C6">Estes C6 (10 Ns)</option>
+                        <option value="F15">Estes F15 (50 Ns)</option>
+                        <option value="G80">AeroTech G80 (120 Ns)</option>
+                    </select>
                 </div>
+                <div class="grid grid-cols-3 gap-2 mt-2">
+                    <div class="bg-slate-900/50 p-2 rounded flex flex-col items-center"><span class="text-[8px] text-slate-500 uppercase">Avg Thrust</span><span id="spec-thrust" class="text-xs text-white mono font-bold">14.6 N</span></div>
+                    <div class="bg-slate-900/50 p-2 rounded flex flex-col items-center"><span class="text-[8px] text-slate-500 uppercase">Burn Time</span><span id="spec-burn" class="text-xs text-white mono font-bold">3.4 s</span></div>
+                    <div class="bg-slate-900/50 p-2 rounded flex flex-col items-center"><span class="text-[8px] text-slate-500 uppercase">Propellant</span><span id="spec-mass" class="text-xs text-white mono font-bold">30 g</span></div>
+                </div>
+                <button onclick="launchRocket()" class="w-full mt-2 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 rounded-lg text-xs font-black uppercase tracking-[0.2em] text-white shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all active:scale-95">
+                    Ignite Engine
+                </button>
             </section>
         </div>
     </aside>
 
     <main id="canvas-container">
         
-        <div class="absolute top-6 left-6 z-50 glass-panel p-4 shadow-xl flex items-center gap-6">
+        <div class="absolute top-6 left-6 z-40 glass-panel p-4 shadow-xl flex items-center gap-6">
             <div class="flex flex-col">
                 <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Stability Margin</span>
                 <span id="hud-margin" class="text-2xl font-black mono text-emerald-400">1.50<span class="text-sm text-slate-500 ml-1">cal</span></span>
@@ -110,21 +113,47 @@
             </div>
         </div>
 
-        <canvas id="gl-canvas"></canvas>
-        
-        <div class="absolute top-6 right-6 z-50">
-            <button onclick="exportSTL()" class="px-4 py-2 text-[10px] font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 rounded-lg text-white flex items-center gap-2 transition-colors shadow-lg">
-                <i data-lucide="download-cloud" class="w-4 h-4"></i> Export STL
-            </button>
+        <div id="flight-hud" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 glass-panel p-4 shadow-2xl flex items-center gap-8 border-t border-orange-500/30 opacity-0 transition-opacity duration-500">
+            <div class="flex flex-col items-center">
+                <span class="text-[9px] font-bold text-orange-400 uppercase tracking-wider">Time (T+)</span>
+                <span id="tele-time" class="text-xl font-black mono text-white">0.00<span class="text-xs text-slate-500 ml-1">s</span></span>
+            </div>
+            <div class="w-px h-8 bg-white/10"></div>
+            <div class="flex flex-col items-center">
+                <span class="text-[9px] font-bold text-cyan-400 uppercase tracking-wider">Altitude</span>
+                <span id="tele-alt" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">m</span></span>
+            </div>
+            <div class="w-px h-8 bg-white/10"></div>
+            <div class="flex flex-col items-center">
+                <span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">Velocity</span>
+                <span id="tele-vel" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">m/s</span></span>
+            </div>
         </div>
+
+        <canvas id="gl-canvas"></canvas>
     </main>
 
     <script>
+        // Data Models
         let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
-        let mathData = { COM: 0, COP: 0, Margin: 0 };
+        let mathData = { COM: 0, COP: 0, Margin: 0, dryMass: 0.150 }; // Added base dry mass
         
+        // Motor Database
+        const motors = {
+            "C6": { thrust: 6.0, burnTime: 1.6, propMass: 0.012, totalMass: 0.024 },
+            "F15": { thrust: 14.6, burnTime: 3.4, propMass: 0.030, totalMass: 0.104 },
+            "G80": { thrust: 65.0, burnTime: 1.8, propMass: 0.065, totalMass: 0.130 }
+        };
+        let activeMotor = motors["C6"];
+        
+        // Graphics Variables
         let scene, camera, renderer, rocketGroup, controls;
         let comMarker, copMarker;
+        
+        // Simulation Variables
+        let isSimulating = false;
+        let simTime = 0, simAlt = 0, simVel = 0;
+        let lastFrameTime = 0;
 
         function initThree() {
             const container = document.getElementById('canvas-container'), canvas = document.getElementById('gl-canvas');
@@ -137,7 +166,7 @@
             
             scene.add(new THREE.AmbientLight(0xffffff, 0.6)); 
             const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(20, 100, 20); scene.add(dirLight);
-            scene.add(new THREE.GridHelper(100, 100, 0x1e293b, 0x0f172a));
+            scene.add(new THREE.GridHelper(500, 100, 0x1e293b, 0x0f172a));
             
             controls = new THREE.OrbitControls(camera, renderer.domElement); 
             controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 + 0.1;
@@ -154,15 +183,22 @@
                 renderer.setSize(container.clientWidth, container.clientHeight); 
             });
             
+            updateMotorSpecs();
             updateAll();
             camera.position.set(30, 20, 30); controls.target.set(0, 20, 0); controls.update();
-            animate();
+            requestAnimationFrame(physicsLoop);
+        }
+
+        function updateMotorSpecs() {
+            const selection = document.getElementById('i-motor').value;
+            activeMotor = motors[selection];
+            document.getElementById('spec-thrust').innerText = activeMotor.thrust.toFixed(1) + " N";
+            document.getElementById('spec-burn').innerText = activeMotor.burnTime.toFixed(1) + " s";
+            document.getElementById('spec-mass').innerText = (activeMotor.propMass * 1000).toFixed(0) + " g";
         }
 
         function runMathEngine() {
             const d = design.bodyDia / 10; 
-            const r = d / 2;
-            
             const massNose = design.noseLen * 0.5;
             const massBody = design.bodyLen * 1.0;
             const massFins = (design.finRoot * design.finSpan * 0.5) * design.finNum * 0.8;
@@ -174,12 +210,7 @@
             mathData.COM = (massNose*cgNose + massBody*cgBody + massFins*cgFins) / (massNose + massBody + massFins);
 
             const CNN = 2.0;
-            let XN = 0;
-            if (design.noseType === 'conical') {
-                XN = 0.666 * design.noseLen; // BUG FIXED: Changed 0.333 to correct 0.666
-            } else {
-                XN = 0.466 * design.noseLen;
-            }
+            let XN = design.noseType === 'conical' ? 0.666 * design.noseLen : 0.466 * design.noseLen;
 
             const Lf = Math.sqrt(Math.pow(design.finSweep, 2) + Math.pow(design.finSpan, 2));
             const CNF = (4 * design.finNum * Math.pow(design.finSpan/d, 2)) / (1 + Math.sqrt(1 + Math.pow(2*Lf / (design.finRoot + design.finTip), 2)));
@@ -198,23 +229,6 @@
             if(mathData.Margin < 1.0) marginEl.className = "text-2xl font-black mono text-red-500";
             else if(mathData.Margin > 3.0) marginEl.className = "text-2xl font-black mono text-amber-500";
             else marginEl.className = "text-2xl font-black mono text-emerald-400";
-        }
-
-        function updateDisplayValues() {
-            ['bodyLen', 'bodyDia', 'noseLen', 'finNum', 'finRoot', 'finTip', 'finSpan', 'finSweep'].forEach(k => {
-                document.getElementById(`v-${k}`).innerText = design[k];
-            });
-        }
-
-        function syncInputsToState() {
-            ['bodyLen', 'bodyDia', 'noseLen', 'finNum', 'finRoot', 'finTip', 'finSpan', 'finSweep'].forEach(k => {
-                design[k] = parseFloat(document.getElementById(`i-${k}`).value);
-            });
-            design.noseType = document.getElementById('i-noseType').value;
-            design.cBody = document.getElementById('i-colBody').value;
-            design.cNose = document.getElementById('i-colNose').value;
-            design.cFins = document.getElementById('i-colFins').value;
-            updateDisplayValues();
         }
 
         function rebuildRocketMesh() {
@@ -251,23 +265,93 @@
             const markerScale = R * 1.5;
             comMarker.scale.set(markerScale, markerScale, markerScale);
             copMarker.scale.set(markerScale, markerScale, markerScale);
-            comMarker.position.set(0, totalLen - mathData.COM, 0);
-            copMarker.position.set(0, totalLen - mathData.COP, 0);
+            comMarker.position.set(rocketGroup.position.x, rocketGroup.position.y + totalLen - mathData.COM, rocketGroup.position.z);
+            copMarker.position.set(rocketGroup.position.x, rocketGroup.position.y + totalLen - mathData.COP, rocketGroup.position.z);
         }
 
-        function exportSTL() {
-            if (!rocketGroup || rocketGroup.children.length === 0) return;
-            const exporter = new THREE.STLExporter();
-            const stlString = exporter.parse(rocketGroup);
-            const blob = new Blob([stlString], { type: 'text/plain' }); 
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a'); 
-            link.style.display = 'none'; link.href = url; link.download = 'SiliconLab_v1.stl';
-            document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+        function updateAll() { 
+            if(isSimulating) return; // Don't allow edits during flight
+            ['bodyLen', 'bodyDia', 'finNum', 'finSpan'].forEach(k => {
+                design[k] = parseFloat(document.getElementById(`i-${k}`).value);
+                document.getElementById(`v-${k}`).innerText = design[k];
+            });
+            design.noseType = document.getElementById('i-noseType').value;
+            runMathEngine(); 
+            rebuildRocketMesh(); 
         }
 
-        function updateAll() { syncInputsToState(); runMathEngine(); rebuildRocketMesh(); }
-        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+        // NEW: Physics Simulation Engine (Euler Integration)
+        function launchRocket() {
+            if (isSimulating) return;
+            
+            document.getElementById('flight-hud').style.opacity = '1';
+            isSimulating = true;
+            simTime = 0; simAlt = 0; simVel = 0;
+            lastFrameTime = performance.now();
+            rocketGroup.position.y = 0;
+        }
+
+        function physicsLoop(currentTime) {
+            requestAnimationFrame(physicsLoop);
+            controls.update();
+            renderer.render(scene, camera);
+
+            if (!isSimulating) return;
+
+            const dt = (currentTime - lastFrameTime) / 1000; // Delta time in seconds
+            lastFrameTime = currentTime;
+            simTime += dt;
+
+            // Mass Depletion Math
+            let currentPropMass = activeMotor.propMass;
+            let currentThrust = 0;
+
+            if (simTime < activeMotor.burnTime) {
+                currentThrust = activeMotor.thrust;
+                currentPropMass = activeMotor.propMass * (1 - (simTime / activeMotor.burnTime));
+            } else {
+                currentPropMass = 0;
+            }
+
+            const currentTotalMass = mathData.dryMass + activeMotor.totalMass - activeMotor.propMass + currentPropMass;
+
+            // Simple 1D Aerodynamic Drag (Cd approx 0.6)
+            const area = Math.PI * Math.pow((design.bodyDia/1000)/2, 2); 
+            const drag = 0.5 * 1.225 * Math.pow(simVel, 2) * 0.6 * area;
+            const dragForce = simVel > 0 ? drag : -drag;
+
+            // F = ma
+            const gravityForce = currentTotalMass * 9.81;
+            const netForce = currentThrust - gravityForce - dragForce;
+            const acceleration = netForce / currentTotalMass;
+
+            // Kinematic Integration
+            simVel += acceleration * dt;
+            simAlt += simVel * dt;
+
+            // Apogee Check / Ground Collision
+            if (simAlt <= 0 && simTime > 0.5) {
+                simAlt = 0;
+                simVel = 0;
+                isSimulating = false;
+                setTimeout(() => document.getElementById('flight-hud').style.opacity = '0', 3000);
+            }
+
+            // Update UI & 3D Model
+            document.getElementById('tele-time').innerText = simTime.toFixed(2);
+            document.getElementById('tele-alt').innerText = simAlt.toFixed(1);
+            document.getElementById('tele-vel').innerText = simVel.toFixed(1);
+            
+            // Move camera and rocket
+            rocketGroup.position.y = simAlt * 0.1; // Scale down for visual
+            camera.position.y = rocketGroup.position.y + 20;
+            controls.target.y = rocketGroup.position.y + 10;
+            
+            // Keep markers synced
+            const totalLen = design.bodyLen + design.noseLen;
+            comMarker.position.set(0, rocketGroup.position.y + (totalLen/10) - (mathData.COM/10), 0);
+            copMarker.position.set(0, rocketGroup.position.y + (totalLen/10) - (mathData.COP/10), 0);
+        }
         
         window.onload = () => { lucide.createIcons(); initThree(); };
     </script>

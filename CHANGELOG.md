@@ -2,6 +2,13 @@
 
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
 
+## Phase 2 — Simulation Core
+### [1.2.0] - 18/09/2025 (The Propulsion Model)
+- Replaced my dummy thrust values with a real commercial motor lookup table (using Estes & AeroTech specs).
+- Wrote a 1D vertical kinematics integrator using the Euler method to simulate the flight profile.
+- Added dynamic mass depletion (the rocket actually gets lighter in the simulation as the motor burns propellant over time).
+- Built a Live Flight Telemetry HUD.
+
 ## Phase 1 — Core Engine
 ### [1.1.1] - 28/08/2025 (Geometry Bug Fix)
 - Realized my $X_n$ math for conical shapes was wrong. Pushed a hotfix to correct the Barrowman equations so the COP marker accurately shifts when changing nose profiles.
