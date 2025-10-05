@@ -3,6 +3,11 @@
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
 
 ## Phase 2 — Simulation Core
+### [1.2.1] - 05/10/2025 (Validation Layer)
+- Added strict unit system enforcement and input sanity checks. 
+- Upgraded the UI to allow direct number typing instead of just sliders.
+- Built a Toast Notification system because I kept accidentally typing in negative values or confusing millimeters with centimeters, which was crashing the math engine with `NaN` errors.
+
 ### [1.2.0] - 18/09/2025 (The Propulsion Model)
 - Replaced my dummy thrust values with a real commercial motor lookup table (using Estes & AeroTech specs).
 - Wrote a 1D vertical kinematics integrator using the Euler method to simulate the flight profile.

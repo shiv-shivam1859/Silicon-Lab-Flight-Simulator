@@ -34,11 +34,17 @@
         .modern-select { appearance: none; background-color: transparent; }
         .modern-select option { background-color: #1e293b; color: #f8fafc; }
         
-        input[type="color"] { -webkit-appearance: none; appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
+        input[type="color"] { appearance: none; -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+        
+        /* Remove arrows from number inputs */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body>
+
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
     <aside class="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/5 bg-slate-950 flex flex-col z-50 relative shadow-2xl shrink-0 h-[50vh] lg:h-full">
         
@@ -48,7 +54,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Sim Core v1.2.0</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Sim Core v1.2.1</p>
             </div>
         </div>
 
@@ -59,8 +65,14 @@
                     <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Airframe & Geometry</label>
                 </div>
                 <div class="grid grid-cols-2 gap-x-6 gap-y-4">
-                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length (cm)</span><span id="v-bodyLen" class="text-cyan-400 mono">40</span></div><input type="range" id="i-bodyLen" min="10" max="100" value="40" class="w-full" oninput="updateAll()"></div>
-                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Dia (mm)</span><span id="v-bodyDia" class="text-cyan-400 mono">24.8</span></div><input type="range" id="i-bodyDia" min="10" max="100" value="24.8" step="0.1" class="w-full" oninput="updateAll()"></div>
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length (cm)</span><input type="number" id="v-bodyLen" value="40" class="w-12 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('bodyLen', 10, 200)"></div>
+                        <input type="range" id="i-bodyLen" min="10" max="200" value="40" class="w-full" oninput="syncFromSlider('bodyLen')">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Dia (mm)</span><input type="number" id="v-bodyDia" value="24.8" step="0.1" class="w-12 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('bodyDia', 10, 150)"></div>
+                        <input type="range" id="i-bodyDia" min="10" max="150" value="24.8" step="0.1" class="w-full" oninput="syncFromSlider('bodyDia')">
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-x-6 gap-y-4 pt-2 border-t border-white/5">
                     <div class="col-span-2 flex flex-col gap-1.5">
@@ -70,8 +82,14 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-x-6 gap-y-4 pt-2 border-t border-white/5">
-                    <div class="col-span-2 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Count</span><span id="v-finNum" class="text-cyan-400 mono">3</span></div><input type="range" id="i-finNum" min="3" max="6" value="3" step="1" class="w-full" oninput="updateAll()"></div>
-                    <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Span (cm)</span><span id="v-finSpan" class="text-cyan-400 mono">2.5</span></div><input type="range" id="i-finSpan" min="1" max="15" value="2.5" step="0.1" class="w-full" oninput="updateAll()"></div>
+                    <div class="col-span-2 flex flex-col gap-1.5">
+                        <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Count</span><input type="number" id="v-finNum" value="3" class="w-10 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('finNum', 3, 8)"></div>
+                        <input type="range" id="i-finNum" min="3" max="8" value="3" step="1" class="w-full" oninput="syncFromSlider('finNum')">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Span (cm)</span><input type="number" id="v-finSpan" value="2.5" step="0.1" class="w-10 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('finSpan', 1, 30)"></div>
+                        <input type="range" id="i-finSpan" min="1" max="30" value="2.5" step="0.1" class="w-full" oninput="syncFromSlider('finSpan')">
+                    </div>
                 </div>
             </section>
 
@@ -100,7 +118,6 @@
     </aside>
 
     <main id="canvas-container">
-        
         <div class="absolute top-6 left-6 z-40 glass-panel p-4 shadow-xl flex items-center gap-6">
             <div class="flex flex-col">
                 <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Stability Margin</span>
@@ -134,11 +151,9 @@
     </main>
 
     <script>
-        // Data Models
         let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
-        let mathData = { COM: 0, COP: 0, Margin: 0, dryMass: 0.150 }; // Added base dry mass
+        let mathData = { COM: 0, COP: 0, Margin: 0, dryMass: 0.150 }; 
         
-        // Motor Database
         const motors = {
             "C6": { thrust: 6.0, burnTime: 1.6, propMass: 0.012, totalMass: 0.024 },
             "F15": { thrust: 14.6, burnTime: 3.4, propMass: 0.030, totalMass: 0.104 },
@@ -146,14 +161,67 @@
         };
         let activeMotor = motors["C6"];
         
-        // Graphics Variables
         let scene, camera, renderer, rocketGroup, controls;
         let comMarker, copMarker;
-        
-        // Simulation Variables
-        let isSimulating = false;
-        let simTime = 0, simAlt = 0, simVel = 0;
-        let lastFrameTime = 0;
+        let isSimulating = false, simTime = 0, simAlt = 0, simVel = 0, lastFrameTime = 0;
+
+        // NEW: Toast Notification System
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-200' : 'bg-blue-500/20 border-blue-500/50 text-blue-200';
+            toast.className = `px-4 py-2 rounded-lg border backdrop-blur-md text-xs font-bold uppercase tracking-wider shadow-lg transition-all duration-300 transform translate-y-[-20px] opacity-0 ${bgColor}`;
+            toast.innerText = message;
+            
+            container.appendChild(toast);
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.style.transform = 'translateY(0)';
+                toast.style.opacity = '1';
+            });
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // NEW: Input Validation Layer
+        function validateAndSync(key, min, max) {
+            if (isSimulating) return;
+            let inputEl = document.getElementById(`v-${key}`);
+            let val = parseFloat(inputEl.value);
+            
+            if (isNaN(val)) {
+                showToast(`Invalid input for ${key}`, 'error');
+                val = design[key]; // Revert
+            } else if (val < min) {
+                showToast(`${key} cannot be less than ${min}`, 'error');
+                val = min;
+            } else if (val > max) {
+                showToast(`${key} cannot exceed ${max}`, 'error');
+                val = max;
+            }
+            
+            inputEl.value = val; // Update text box
+            document.getElementById(`i-${key}`).value = val; // Sync slider
+            design[key] = val; // Update state
+            
+            runMathEngine();
+            rebuildRocketMesh();
+        }
+
+        function syncFromSlider(key) {
+            if (isSimulating) return;
+            const val = parseFloat(document.getElementById(`i-${key}`).value);
+            document.getElementById(`v-${key}`).value = val; // Sync text box
+            design[key] = val;
+            runMathEngine();
+            rebuildRocketMesh();
+        }
 
         function initThree() {
             const container = document.getElementById('canvas-container'), canvas = document.getElementById('gl-canvas');
@@ -270,19 +338,18 @@
         }
 
         function updateAll() { 
-            if(isSimulating) return; // Don't allow edits during flight
-            ['bodyLen', 'bodyDia', 'finNum', 'finSpan'].forEach(k => {
-                design[k] = parseFloat(document.getElementById(`i-${k}`).value);
-                document.getElementById(`v-${k}`).innerText = design[k];
-            });
+            if(isSimulating) return;
             design.noseType = document.getElementById('i-noseType').value;
             runMathEngine(); 
             rebuildRocketMesh(); 
         }
 
-        // NEW: Physics Simulation Engine (Euler Integration)
         function launchRocket() {
             if (isSimulating) return;
+            if (mathData.Margin < 1.0) {
+                showToast("Cannot launch: Rocket is unstable!", "error");
+                return;
+            }
             
             document.getElementById('flight-hud').style.opacity = '1';
             isSimulating = true;
@@ -298,11 +365,10 @@
 
             if (!isSimulating) return;
 
-            const dt = (currentTime - lastFrameTime) / 1000; // Delta time in seconds
+            const dt = (currentTime - lastFrameTime) / 1000; 
             lastFrameTime = currentTime;
             simTime += dt;
 
-            // Mass Depletion Math
             let currentPropMass = activeMotor.propMass;
             let currentThrust = 0;
 
@@ -315,21 +381,17 @@
 
             const currentTotalMass = mathData.dryMass + activeMotor.totalMass - activeMotor.propMass + currentPropMass;
 
-            // Simple 1D Aerodynamic Drag (Cd approx 0.6)
             const area = Math.PI * Math.pow((design.bodyDia/1000)/2, 2); 
             const drag = 0.5 * 1.225 * Math.pow(simVel, 2) * 0.6 * area;
             const dragForce = simVel > 0 ? drag : -drag;
 
-            // F = ma
             const gravityForce = currentTotalMass * 9.81;
             const netForce = currentThrust - gravityForce - dragForce;
             const acceleration = netForce / currentTotalMass;
 
-            // Kinematic Integration
             simVel += acceleration * dt;
             simAlt += simVel * dt;
 
-            // Apogee Check / Ground Collision
             if (simAlt <= 0 && simTime > 0.5) {
                 simAlt = 0;
                 simVel = 0;
@@ -337,17 +399,14 @@
                 setTimeout(() => document.getElementById('flight-hud').style.opacity = '0', 3000);
             }
 
-            // Update UI & 3D Model
             document.getElementById('tele-time').innerText = simTime.toFixed(2);
             document.getElementById('tele-alt').innerText = simAlt.toFixed(1);
             document.getElementById('tele-vel').innerText = simVel.toFixed(1);
             
-            // Move camera and rocket
-            rocketGroup.position.y = simAlt * 0.1; // Scale down for visual
+            rocketGroup.position.y = simAlt * 0.1; 
             camera.position.y = rocketGroup.position.y + 20;
             controls.target.y = rocketGroup.position.y + 10;
             
-            // Keep markers synced
             const totalLen = design.bodyLen + design.noseLen;
             comMarker.position.set(0, rocketGroup.position.y + (totalLen/10) - (mathData.COM/10), 0);
             copMarker.position.set(0, rocketGroup.position.y + (totalLen/10) - (mathData.COP/10), 0);
