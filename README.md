@@ -11,9 +11,6 @@ This project was started before being uploaded to GitHub. I have been documentin
 * **Aerodynamic Math Engine:** Live algebraic calculations of the Center of Mass (COM), Center of Pressure (COP), and Static Stability Margins using the Barrowman equations.
 * **STL Export:** Ability to export the generated 3D models as `.stl` files for actual 3D printing.
 
-## Important 📢
-This project was started before being uploaded to GitHub. I have been documenting its progress independently, so some commits may have adjusted timestamps to reflect the original development timeline. Please ignore any inconsistencies in the commit history.
-
 ## Tech Stack
 * **Frontend:** HTML5, Vanilla JavaScript
 * **Styling:** Tailwind CSS
