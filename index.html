@@ -37,7 +37,6 @@
         input[type="color"] { appearance: none; -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
         
-        /* Remove arrows from number inputs */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
@@ -54,7 +53,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Sim Core v1.2.1</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Aero Core v1.3.0</p>
             </div>
         </div>
 
@@ -90,6 +89,20 @@
                         <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Span (cm)</span><input type="number" id="v-finSpan" value="2.5" step="0.1" class="w-10 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('finSpan', 1, 30)"></div>
                         <input type="range" id="i-finSpan" min="1" max="30" value="2.5" step="0.1" class="w-full" oninput="syncFromSlider('finSpan')">
                     </div>
+                </div>
+            </section>
+
+            <section class="glass-panel p-4 space-y-4 border border-emerald-500/20 bg-emerald-900/10">
+                <div class="flex justify-between items-center border-b border-emerald-500/20 pb-3">
+                    <label class="text-[10px] font-bold text-emerald-300 uppercase tracking-[0.15em]">Environment</label>
+                    <i data-lucide="wind" class="w-4 h-4 text-emerald-500"></i>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                        <span>Crosswind (m/s)</span>
+                        <input type="number" id="v-wind" value="2" step="0.1" class="w-12 bg-transparent text-emerald-400 mono text-right outline-none border-b border-transparent focus:border-emerald-400 transition-colors" onchange="validateAndSync('wind', 0, 30)">
+                    </div>
+                    <input type="range" id="i-wind" min="0" max="30" value="2" step="0.1" class="w-full" oninput="syncFromSlider('wind')">
                 </div>
             </section>
 
@@ -130,10 +143,10 @@
             </div>
         </div>
 
-        <div id="flight-hud" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 glass-panel p-4 shadow-2xl flex items-center gap-8 border-t border-orange-500/30 opacity-0 transition-opacity duration-500">
+        <div id="flight-hud" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 glass-panel p-4 shadow-2xl flex items-center gap-6 border-t border-orange-500/30 opacity-0 transition-opacity duration-500">
             <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-orange-400 uppercase tracking-wider">Time (T+)</span>
-                <span id="tele-time" class="text-xl font-black mono text-white">0.00<span class="text-xs text-slate-500 ml-1">s</span></span>
+                <span class="text-[9px] font-bold text-orange-400 uppercase tracking-wider">Time</span>
+                <span id="tele-time" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">s</span></span>
             </div>
             <div class="w-px h-8 bg-white/10"></div>
             <div class="flex flex-col items-center">
@@ -142,8 +155,13 @@
             </div>
             <div class="w-px h-8 bg-white/10"></div>
             <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">Velocity</span>
-                <span id="tele-vel" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">m/s</span></span>
+                <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Drift (X)</span>
+                <span id="tele-x" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">m</span></span>
+            </div>
+            <div class="w-px h-8 bg-white/10"></div>
+            <div class="flex flex-col items-center">
+                <span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">Angle</span>
+                <span id="tele-ang" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">°</span></span>
             </div>
         </div>
 
@@ -151,8 +169,8 @@
     </main>
 
     <script>
-        let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
-        let mathData = { COM: 0, COP: 0, Margin: 0, dryMass: 0.150 }; 
+        let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, wind: 2, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
+        let mathData = { COM: 0, COP: 0, Margin: 0, dryMass: 0.150, momentOfInertia: 0.01 }; 
         
         const motors = {
             "C6": { thrust: 6.0, burnTime: 1.6, propMass: 0.012, totalMass: 0.024 },
@@ -161,27 +179,24 @@
         };
         let activeMotor = motors["C6"];
         
-        let scene, camera, renderer, rocketGroup, controls;
+        let scene, camera, renderer, rocketGroup, controls, trailGeom, trailLine;
         let comMarker, copMarker;
-        let isSimulating = false, simTime = 0, simAlt = 0, simVel = 0, lastFrameTime = 0;
+        
+        // 2D Physics Variables
+        let isSimulating = false;
+        let simTime = 0, posX = 0, posY = 0, velX = 0, velY = 0;
+        let pitchAngle = 0, pitchRate = 0; // The source of the tumble bug!
+        let lastFrameTime = 0;
+        let trailPoints = [];
 
-        // NEW: Toast Notification System
         function showToast(message, type = 'error') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-200' : 'bg-blue-500/20 border-blue-500/50 text-blue-200';
             toast.className = `px-4 py-2 rounded-lg border backdrop-blur-md text-xs font-bold uppercase tracking-wider shadow-lg transition-all duration-300 transform translate-y-[-20px] opacity-0 ${bgColor}`;
             toast.innerText = message;
-            
             container.appendChild(toast);
-            
-            // Animate in
-            requestAnimationFrame(() => {
-                toast.style.transform = 'translateY(0)';
-                toast.style.opacity = '1';
-            });
-            
-            // Remove after 3 seconds
+            requestAnimationFrame(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; });
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateY(-20px)';
@@ -189,38 +204,22 @@
             }, 3000);
         }
 
-        // NEW: Input Validation Layer
         function validateAndSync(key, min, max) {
             if (isSimulating) return;
             let inputEl = document.getElementById(`v-${key}`);
             let val = parseFloat(inputEl.value);
-            
-            if (isNaN(val)) {
-                showToast(`Invalid input for ${key}`, 'error');
-                val = design[key]; // Revert
-            } else if (val < min) {
-                showToast(`${key} cannot be less than ${min}`, 'error');
-                val = min;
-            } else if (val > max) {
-                showToast(`${key} cannot exceed ${max}`, 'error');
-                val = max;
-            }
-            
-            inputEl.value = val; // Update text box
-            document.getElementById(`i-${key}`).value = val; // Sync slider
-            design[key] = val; // Update state
-            
-            runMathEngine();
-            rebuildRocketMesh();
+            if (isNaN(val)) { showToast(`Invalid input`, 'error'); val = design[key]; } 
+            else if (val < min) { showToast(`Min is ${min}`, 'error'); val = min; } 
+            else if (val > max) { showToast(`Max is ${max}`, 'error'); val = max; }
+            inputEl.value = val; document.getElementById(`i-${key}`).value = val; design[key] = val;
+            runMathEngine(); rebuildRocketMesh();
         }
 
         function syncFromSlider(key) {
             if (isSimulating) return;
             const val = parseFloat(document.getElementById(`i-${key}`).value);
-            document.getElementById(`v-${key}`).value = val; // Sync text box
-            design[key] = val;
-            runMathEngine();
-            rebuildRocketMesh();
+            document.getElementById(`v-${key}`).value = val; design[key] = val;
+            runMathEngine(); rebuildRocketMesh();
         }
 
         function initThree() {
@@ -245,14 +244,18 @@
             comMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0x3b82f6})); scene.add(comMarker);
             copMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0xef4444})); scene.add(copMarker);
 
+            // Flight Path Trail
+            trailGeom = new THREE.BufferGeometry();
+            trailLine = new THREE.Line(trailGeom, new THREE.LineBasicMaterial({color: 0x0ea5e9, opacity: 0.5, transparent: true}));
+            scene.add(trailLine);
+
             window.addEventListener('resize', () => { 
                 camera.aspect = container.clientWidth / container.clientHeight; 
                 camera.updateProjectionMatrix(); 
                 renderer.setSize(container.clientWidth, container.clientHeight); 
             });
             
-            updateMotorSpecs();
-            updateAll();
+            updateMotorSpecs(); updateAll();
             camera.position.set(30, 20, 30); controls.target.set(0, 20, 0); controls.update();
             requestAnimationFrame(physicsLoop);
         }
@@ -276,6 +279,10 @@
             const cgFins = design.noseLen + design.bodyLen - (design.finRoot / 2);
             
             mathData.COM = (massNose*cgNose + massBody*cgBody + massFins*cgFins) / (massNose + massBody + massFins);
+            
+            // Rough Moment of Inertia approx (1/12 * m * L^2) for rotational physics
+            const totalL_meters = (design.bodyLen + design.noseLen) / 100;
+            mathData.momentOfInertia = (1/12) * mathData.dryMass * Math.pow(totalL_meters, 2);
 
             const CNN = 2.0;
             let XN = design.noseType === 'conical' ? 0.666 * design.noseLen : 0.466 * design.noseLen;
@@ -329,35 +336,38 @@
                 const fin = new THREE.Mesh(fG, mF); fin.rotation.y = (i * Math.PI * 2) / design.finNum; rocketGroup.add(fin); 
             }
 
+            // Offset mesh so COM is at the origin of the group (crucial for accurate physics rotation)
+            const comOffset = (design.bodyLen + design.noseLen) - mathData.COM;
+            tube.position.y -= comOffset;
+            nose.position.y -= comOffset;
+            rocketGroup.children.forEach(c => { if(c.geometry.type === 'ExtrudeGeometry') c.position.y -= comOffset; });
+
             const totalLen = design.bodyLen + design.noseLen;
             const markerScale = R * 1.5;
             comMarker.scale.set(markerScale, markerScale, markerScale);
             copMarker.scale.set(markerScale, markerScale, markerScale);
-            comMarker.position.set(rocketGroup.position.x, rocketGroup.position.y + totalLen - mathData.COM, rocketGroup.position.z);
-            copMarker.position.set(rocketGroup.position.x, rocketGroup.position.y + totalLen - mathData.COP, rocketGroup.position.z);
         }
 
         function updateAll() { 
             if(isSimulating) return;
             design.noseType = document.getElementById('i-noseType').value;
-            runMathEngine(); 
-            rebuildRocketMesh(); 
+            runMathEngine(); rebuildRocketMesh(); 
         }
 
         function launchRocket() {
             if (isSimulating) return;
-            if (mathData.Margin < 1.0) {
-                showToast("Cannot launch: Rocket is unstable!", "error");
-                return;
-            }
+            if (mathData.Margin < 1.0) { showToast("Cannot launch: Rocket is unstable!", "error"); return; }
             
             document.getElementById('flight-hud').style.opacity = '1';
             isSimulating = true;
-            simTime = 0; simAlt = 0; simVel = 0;
+            simTime = 0; posX = 0; posY = 0; velX = 0; velY = 0; pitchAngle = 0; pitchRate = 0;
+            trailPoints = [];
             lastFrameTime = performance.now();
-            rocketGroup.position.y = 0;
+            rocketGroup.position.set(0, 0, 0);
+            rocketGroup.rotation.z = 0;
         }
 
+        // NEW: 2D Physics Loop with Rotation (The Tumble Bug!)
         function physicsLoop(currentTime) {
             requestAnimationFrame(physicsLoop);
             controls.update();
@@ -365,51 +375,93 @@
 
             if (!isSimulating) return;
 
-            const dt = (currentTime - lastFrameTime) / 1000; 
+            // Clamp dt to prevent massive jumps if tab is inactive
+            let dt = (currentTime - lastFrameTime) / 1000; 
+            if(dt > 0.1) dt = 0.1; 
             lastFrameTime = currentTime;
             simTime += dt;
 
+            // Engine Thrust & Mass
             let currentPropMass = activeMotor.propMass;
             let currentThrust = 0;
-
             if (simTime < activeMotor.burnTime) {
                 currentThrust = activeMotor.thrust;
                 currentPropMass = activeMotor.propMass * (1 - (simTime / activeMotor.burnTime));
-            } else {
-                currentPropMass = 0;
+            } else { currentPropMass = 0; }
+            const totalMass = mathData.dryMass + activeMotor.totalMass - activeMotor.propMass + currentPropMass;
+
+            // 2D Velocity & Apparent Wind
+            const windSpeed = design.wind; // m/s coming from +X
+            const relativeVelX = velX - windSpeed;
+            const relativeVelY = velY;
+            
+            // INTENTIONAL BUG: Angle of Attack weathercocking calculation without Aerodynamic Damping
+            let angleOfAttack = 0;
+            if (relativeVelY > 0.1) {
+                // How far is the rocket's nose pointing away from the oncoming wind vector?
+                const flightPathAngle = Math.atan2(relativeVelX, relativeVelY);
+                angleOfAttack = pitchAngle - flightPathAngle; 
             }
 
-            const currentTotalMass = mathData.dryMass + activeMotor.totalMass - activeMotor.propMass + currentPropMass;
+            // Restoring Torque (pushes rocket to align with wind)
+            const dynamicPressure = 0.5 * 1.225 * (Math.pow(relativeVelX, 2) + Math.pow(relativeVelY, 2));
+            const refArea = Math.PI * Math.pow((design.bodyDia/1000)/2, 2);
+            const normalForce = 2.0 * angleOfAttack * dynamicPressure * refArea; // Simplified C_N_alpha
+            
+            const cpDistance = (mathData.COP - mathData.COM) / 100; // meters
+            const restoringTorque = -normalForce * cpDistance;
 
-            const area = Math.PI * Math.pow((design.bodyDia/1000)/2, 2); 
-            const drag = 0.5 * 1.225 * Math.pow(simVel, 2) * 0.6 * area;
-            const dragForce = simVel > 0 ? drag : -drag;
+            // Angular Kinematics (No C_mq damping applied!)
+            const angularAccel = restoringTorque / mathData.momentOfInertia;
+            pitchRate += angularAccel * dt;
+            pitchAngle += pitchRate * dt;
 
-            const gravityForce = currentTotalMass * 9.81;
-            const netForce = currentThrust - gravityForce - dragForce;
-            const acceleration = netForce / currentTotalMass;
+            // Linear Forces
+            const dragForce = dynamicPressure * 0.6 * refArea;
+            const dragX = dragForce * Math.sin(Math.atan2(relativeVelX, relativeVelY));
+            const dragY = dragForce * Math.cos(Math.atan2(relativeVelX, relativeVelY));
 
-            simVel += acceleration * dt;
-            simAlt += simVel * dt;
+            const thrustX = currentThrust * Math.sin(pitchAngle);
+            const thrustY = currentThrust * Math.cos(pitchAngle);
 
-            if (simAlt <= 0 && simTime > 0.5) {
-                simAlt = 0;
-                simVel = 0;
-                isSimulating = false;
+            const accelX = (thrustX - dragX) / totalMass;
+            const accelY = (thrustY - dragY - (totalMass * 9.81)) / totalMass;
+
+            velX += accelX * dt;
+            velY += accelY * dt;
+            posX += velX * dt;
+            posY += velY * dt;
+
+            // Ground Collision
+            if (posY <= 0 && simTime > 0.5) {
+                posY = 0; velX = 0; velY = 0; pitchRate = 0; isSimulating = false;
                 setTimeout(() => document.getElementById('flight-hud').style.opacity = '0', 3000);
             }
 
-            document.getElementById('tele-time').innerText = simTime.toFixed(2);
-            document.getElementById('tele-alt').innerText = simAlt.toFixed(1);
-            document.getElementById('tele-vel').innerText = simVel.toFixed(1);
+            // Update UI & 3D Model
+            document.getElementById('tele-time').innerText = simTime.toFixed(1);
+            document.getElementById('tele-alt').innerText = posY.toFixed(1);
+            document.getElementById('tele-x').innerText = posX.toFixed(1);
+            document.getElementById('tele-ang').innerText = (pitchAngle * (180/Math.PI)).toFixed(1);
             
-            rocketGroup.position.y = simAlt * 0.1; 
-            camera.position.y = rocketGroup.position.y + 20;
-            controls.target.y = rocketGroup.position.y + 10;
+            // Apply 2D Transforms
+            rocketGroup.position.set(posX * 0.1, posY * 0.1, 0);
+            rocketGroup.rotation.z = -pitchAngle; // Negative because Three.js Z-rotation is counter-clockwise
             
-            const totalLen = design.bodyLen + design.noseLen;
-            comMarker.position.set(0, rocketGroup.position.y + (totalLen/10) - (mathData.COM/10), 0);
-            copMarker.position.set(0, rocketGroup.position.y + (totalLen/10) - (mathData.COP/10), 0);
+            camera.position.set(posX * 0.1, (posY * 0.1) + 20, 30);
+            controls.target.set(posX * 0.1, (posY * 0.1) + 10, 0);
+            
+            // Trail Update
+            if(simTime % 0.1 < dt) {
+                trailPoints.push(new THREE.Vector3(posX * 0.1, posY * 0.1, 0));
+                trailGeom.setFromPoints(trailPoints);
+            }
+
+            // Update Markers relative to rotated rocket
+            comMarker.position.copy(rocketGroup.position);
+            const localCP = new THREE.Vector3(0, -((mathData.COP - mathData.COM)/10), 0);
+            localCP.applyEuler(rocketGroup.rotation);
+            copMarker.position.copy(rocketGroup.position).add(localCP);
         }
         
         window.onload = () => { lucide.createIcons(); initThree(); };

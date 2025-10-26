@@ -2,6 +2,13 @@
 
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
 
+## Phase 3 — Aerodynamics
+### [1.3.0] - 26/10/2025 (Wind + Horizontal Motion)
+- Upgraded the physics engine to 2D! Added horizontal velocity tracking ($V_x$) to simulate wind drift.
+- Built a Crosswind slider in the UI.
+- Calculated rotational inertia and torque based on the Barrowman Center of Pressure.
+- *Bug Note:* Adding wind completely broke the physics engine. The rocket goes into a positive-feedback loop and death-spins (tumbles) uncontrollably every time it launches. Need to figure out why this is happening.
+
 ## Phase 2 — Simulation Core
 ### [1.2.1] - 05/10/2025 (Validation Layer)
 - Added strict unit system enforcement and input sanity checks. 
