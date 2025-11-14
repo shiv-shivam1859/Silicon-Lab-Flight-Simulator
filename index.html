@@ -34,7 +34,7 @@
         .modern-select { appearance: none; background-color: transparent; }
         .modern-select option { background-color: #1e293b; color: #f8fafc; }
         
-        input[type="color"] { appearance: none; -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
+        input[type="color"] { -webkit-appearance: none; appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
         
         input[type=number]::-webkit-inner-spin-button, 
@@ -53,7 +53,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Aero Core v1.3.0</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Aero Core v1.3.1</p>
             </div>
         </div>
 
@@ -182,10 +182,9 @@
         let scene, camera, renderer, rocketGroup, controls, trailGeom, trailLine;
         let comMarker, copMarker;
         
-        // 2D Physics Variables
         let isSimulating = false;
         let simTime = 0, posX = 0, posY = 0, velX = 0, velY = 0;
-        let pitchAngle = 0, pitchRate = 0; // The source of the tumble bug!
+        let pitchAngle = 0, pitchRate = 0; 
         let lastFrameTime = 0;
         let trailPoints = [];
 
@@ -244,7 +243,6 @@
             comMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0x3b82f6})); scene.add(comMarker);
             copMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0xef4444})); scene.add(copMarker);
 
-            // Flight Path Trail
             trailGeom = new THREE.BufferGeometry();
             trailLine = new THREE.Line(trailGeom, new THREE.LineBasicMaterial({color: 0x0ea5e9, opacity: 0.5, transparent: true}));
             scene.add(trailLine);
@@ -280,7 +278,6 @@
             
             mathData.COM = (massNose*cgNose + massBody*cgBody + massFins*cgFins) / (massNose + massBody + massFins);
             
-            // Rough Moment of Inertia approx (1/12 * m * L^2) for rotational physics
             const totalL_meters = (design.bodyLen + design.noseLen) / 100;
             mathData.momentOfInertia = (1/12) * mathData.dryMass * Math.pow(totalL_meters, 2);
 
@@ -336,7 +333,6 @@
                 const fin = new THREE.Mesh(fG, mF); fin.rotation.y = (i * Math.PI * 2) / design.finNum; rocketGroup.add(fin); 
             }
 
-            // Offset mesh so COM is at the origin of the group (crucial for accurate physics rotation)
             const comOffset = (design.bodyLen + design.noseLen) - mathData.COM;
             tube.position.y -= comOffset;
             nose.position.y -= comOffset;
@@ -367,7 +363,6 @@
             rocketGroup.rotation.z = 0;
         }
 
-        // NEW: 2D Physics Loop with Rotation (The Tumble Bug!)
         function physicsLoop(currentTime) {
             requestAnimationFrame(physicsLoop);
             controls.update();
@@ -375,13 +370,11 @@
 
             if (!isSimulating) return;
 
-            // Clamp dt to prevent massive jumps if tab is inactive
             let dt = (currentTime - lastFrameTime) / 1000; 
             if(dt > 0.1) dt = 0.1; 
             lastFrameTime = currentTime;
             simTime += dt;
 
-            // Engine Thrust & Mass
             let currentPropMass = activeMotor.propMass;
             let currentThrust = 0;
             if (simTime < activeMotor.burnTime) {
@@ -390,33 +383,33 @@
             } else { currentPropMass = 0; }
             const totalMass = mathData.dryMass + activeMotor.totalMass - activeMotor.propMass + currentPropMass;
 
-            // 2D Velocity & Apparent Wind
-            const windSpeed = design.wind; // m/s coming from +X
+            const windSpeed = design.wind; 
             const relativeVelX = velX - windSpeed;
             const relativeVelY = velY;
             
-            // INTENTIONAL BUG: Angle of Attack weathercocking calculation without Aerodynamic Damping
             let angleOfAttack = 0;
             if (relativeVelY > 0.1) {
-                // How far is the rocket's nose pointing away from the oncoming wind vector?
                 const flightPathAngle = Math.atan2(relativeVelX, relativeVelY);
                 angleOfAttack = pitchAngle - flightPathAngle; 
             }
 
-            // Restoring Torque (pushes rocket to align with wind)
             const dynamicPressure = 0.5 * 1.225 * (Math.pow(relativeVelX, 2) + Math.pow(relativeVelY, 2));
             const refArea = Math.PI * Math.pow((design.bodyDia/1000)/2, 2);
-            const normalForce = 2.0 * angleOfAttack * dynamicPressure * refArea; // Simplified C_N_alpha
+            const normalForce = 2.0 * angleOfAttack * dynamicPressure * refArea; 
             
-            const cpDistance = (mathData.COP - mathData.COM) / 100; // meters
+            const cpDistance = (mathData.COP - mathData.COM) / 100; 
             const restoringTorque = -normalForce * cpDistance;
 
-            // Angular Kinematics (No C_mq damping applied!)
-            const angularAccel = restoringTorque / mathData.momentOfInertia;
+            // BUG FIXED: Added Aerodynamic Damping Torque (Cmq)
+            const totalL_meters = (design.bodyLen + design.noseLen) / 100;
+            const dampingTorque = -20.0 * pitchRate * (dynamicPressure + 0.1) * refArea * Math.pow(totalL_meters, 2);
+            
+            const totalTorque = restoringTorque + dampingTorque;
+            const angularAccel = totalTorque / mathData.momentOfInertia;
+            
             pitchRate += angularAccel * dt;
             pitchAngle += pitchRate * dt;
 
-            // Linear Forces
             const dragForce = dynamicPressure * 0.6 * refArea;
             const dragX = dragForce * Math.sin(Math.atan2(relativeVelX, relativeVelY));
             const dragY = dragForce * Math.cos(Math.atan2(relativeVelX, relativeVelY));
@@ -432,32 +425,27 @@
             posX += velX * dt;
             posY += velY * dt;
 
-            // Ground Collision
             if (posY <= 0 && simTime > 0.5) {
                 posY = 0; velX = 0; velY = 0; pitchRate = 0; isSimulating = false;
                 setTimeout(() => document.getElementById('flight-hud').style.opacity = '0', 3000);
             }
 
-            // Update UI & 3D Model
             document.getElementById('tele-time').innerText = simTime.toFixed(1);
             document.getElementById('tele-alt').innerText = posY.toFixed(1);
             document.getElementById('tele-x').innerText = posX.toFixed(1);
             document.getElementById('tele-ang').innerText = (pitchAngle * (180/Math.PI)).toFixed(1);
             
-            // Apply 2D Transforms
             rocketGroup.position.set(posX * 0.1, posY * 0.1, 0);
-            rocketGroup.rotation.z = -pitchAngle; // Negative because Three.js Z-rotation is counter-clockwise
+            rocketGroup.rotation.z = -pitchAngle; 
             
             camera.position.set(posX * 0.1, (posY * 0.1) + 20, 30);
             controls.target.set(posX * 0.1, (posY * 0.1) + 10, 0);
             
-            // Trail Update
             if(simTime % 0.1 < dt) {
                 trailPoints.push(new THREE.Vector3(posX * 0.1, posY * 0.1, 0));
                 trailGeom.setFromPoints(trailPoints);
             }
 
-            // Update Markers relative to rotated rocket
             comMarker.position.copy(rocketGroup.position);
             const localCP = new THREE.Vector3(0, -((mathData.COP - mathData.COM)/10), 0);
             localCP.applyEuler(rocketGroup.rotation);

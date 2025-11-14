@@ -3,6 +3,10 @@
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
 
 ## Phase 3 — Aerodynamics
+### [1.3.1] - 14/11/2025 (The Damping Fix)
+- FIXED THE TUMBLE BUG! I researched aerospace physics and discovered pitch damping derivatives ($C_{mq}$). 
+- Implemented damping torque into the rotational physics loop. The rocket now stabilizes itself gracefully and weathercocks into the wind instead of spinning out of control.
+
 ### [1.3.0] - 26/10/2025 (Wind + Horizontal Motion)
 - Upgraded the physics engine to 2D! Added horizontal velocity tracking ($V_x$) to simulate wind drift.
 - Built a Crosswind slider in the UI.
