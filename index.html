@@ -34,7 +34,7 @@
         .modern-select { appearance: none; background-color: transparent; }
         .modern-select option { background-color: #1e293b; color: #f8fafc; }
         
-        input[type="color"] { -webkit-appearance: none; appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
+        input[type="color"] { -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
         
         input[type=number]::-webkit-inner-spin-button, 
@@ -53,7 +53,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Aero Core v1.3.1</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Flight Core v1.4.0</p>
             </div>
         </div>
 
@@ -92,6 +92,21 @@
                 </div>
             </section>
 
+            <section class="glass-panel p-4 space-y-4 border border-yellow-500/20 bg-yellow-900/10">
+                <div class="flex justify-between items-center border-b border-yellow-500/20 pb-3">
+                    <label class="text-[10px] font-bold text-yellow-300 uppercase tracking-[0.15em]">Recovery System</label>
+                    <i data-lucide="umbrella" class="w-4 h-4 text-yellow-500"></i>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                        <span>Chute Dia (cm)</span>
+                        <input type="number" id="v-chuteDia" value="30" step="1" class="w-12 bg-transparent text-yellow-400 mono text-right outline-none border-b border-transparent focus:border-yellow-400 transition-colors" onchange="validateAndSync('chuteDia', 10, 200)">
+                    </div>
+                    <input type="range" id="i-chuteDia" min="10" max="200" value="30" step="1" class="w-full" oninput="syncFromSlider('chuteDia')">
+                </div>
+                <p class="text-[8px] text-yellow-500/70 uppercase tracking-wider text-center mt-2 border-t border-yellow-500/10 pt-2">Deploy at Apogee</p>
+            </section>
+
             <section class="glass-panel p-4 space-y-4 border border-emerald-500/20 bg-emerald-900/10">
                 <div class="flex justify-between items-center border-b border-emerald-500/20 pb-3">
                     <label class="text-[10px] font-bold text-emerald-300 uppercase tracking-[0.15em]">Environment</label>
@@ -118,11 +133,6 @@
                         <option value="G80">AeroTech G80 (120 Ns)</option>
                     </select>
                 </div>
-                <div class="grid grid-cols-3 gap-2 mt-2">
-                    <div class="bg-slate-900/50 p-2 rounded flex flex-col items-center"><span class="text-[8px] text-slate-500 uppercase">Avg Thrust</span><span id="spec-thrust" class="text-xs text-white mono font-bold">14.6 N</span></div>
-                    <div class="bg-slate-900/50 p-2 rounded flex flex-col items-center"><span class="text-[8px] text-slate-500 uppercase">Burn Time</span><span id="spec-burn" class="text-xs text-white mono font-bold">3.4 s</span></div>
-                    <div class="bg-slate-900/50 p-2 rounded flex flex-col items-center"><span class="text-[8px] text-slate-500 uppercase">Propellant</span><span id="spec-mass" class="text-xs text-white mono font-bold">30 g</span></div>
-                </div>
                 <button onclick="launchRocket()" class="w-full mt-2 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 rounded-lg text-xs font-black uppercase tracking-[0.2em] text-white shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all active:scale-95">
                     Ignite Engine
                 </button>
@@ -144,8 +154,13 @@
         </div>
 
         <div id="flight-hud" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 glass-panel p-4 shadow-2xl flex items-center gap-6 border-t border-orange-500/30 opacity-0 transition-opacity duration-500">
+            <div class="flex flex-col items-center mr-2 px-4 py-2 bg-slate-900/80 rounded-md border border-white/10">
+                <span id="tele-phase" class="text-xs font-black text-orange-500 tracking-[0.2em] uppercase">Pad</span>
+            </div>
+            <div class="w-px h-8 bg-white/10"></div>
+            
             <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-orange-400 uppercase tracking-wider">Time</span>
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Time</span>
                 <span id="tele-time" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">s</span></span>
             </div>
             <div class="w-px h-8 bg-white/10"></div>
@@ -155,13 +170,8 @@
             </div>
             <div class="w-px h-8 bg-white/10"></div>
             <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Drift (X)</span>
-                <span id="tele-x" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">m</span></span>
-            </div>
-            <div class="w-px h-8 bg-white/10"></div>
-            <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">Angle</span>
-                <span id="tele-ang" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">°</span></span>
+                <span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">Velocity</span>
+                <span id="tele-vel" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">m/s</span></span>
             </div>
         </div>
 
@@ -169,7 +179,7 @@
     </main>
 
     <script>
-        let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, wind: 2, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
+        let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, wind: 2, chuteDia: 30, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
         let mathData = { COM: 0, COP: 0, Margin: 0, dryMass: 0.150, momentOfInertia: 0.01 }; 
         
         const motors = {
@@ -179,10 +189,11 @@
         };
         let activeMotor = motors["C6"];
         
-        let scene, camera, renderer, rocketGroup, controls, trailGeom, trailLine;
+        let scene, camera, renderer, rocketGroup, controls, trailGeom, trailLine, parachuteMesh;
         let comMarker, copMarker;
         
         let isSimulating = false;
+        let flightPhase = "PAD"; // PAD, ASCENT, DESCENT, LANDED
         let simTime = 0, posX = 0, posY = 0, velX = 0, velY = 0;
         let pitchAngle = 0, pitchRate = 0; 
         let lastFrameTime = 0;
@@ -196,11 +207,7 @@
             toast.innerText = message;
             container.appendChild(toast);
             requestAnimationFrame(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; });
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-20px)';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-20px)'; setTimeout(() => toast.remove(), 300); }, 3000);
         }
 
         function validateAndSync(key, min, max) {
@@ -259,11 +266,7 @@
         }
 
         function updateMotorSpecs() {
-            const selection = document.getElementById('i-motor').value;
-            activeMotor = motors[selection];
-            document.getElementById('spec-thrust').innerText = activeMotor.thrust.toFixed(1) + " N";
-            document.getElementById('spec-burn').innerText = activeMotor.burnTime.toFixed(1) + " s";
-            document.getElementById('spec-mass').innerText = (activeMotor.propMass * 1000).toFixed(0) + " g";
+            activeMotor = motors[document.getElementById('i-motor').value];
         }
 
         function runMathEngine() {
@@ -277,27 +280,22 @@
             const cgFins = design.noseLen + design.bodyLen - (design.finRoot / 2);
             
             mathData.COM = (massNose*cgNose + massBody*cgBody + massFins*cgFins) / (massNose + massBody + massFins);
-            
             const totalL_meters = (design.bodyLen + design.noseLen) / 100;
             mathData.momentOfInertia = (1/12) * mathData.dryMass * Math.pow(totalL_meters, 2);
 
-            const CNN = 2.0;
             let XN = design.noseType === 'conical' ? 0.666 * design.noseLen : 0.466 * design.noseLen;
-
             const Lf = Math.sqrt(Math.pow(design.finSweep, 2) + Math.pow(design.finSpan, 2));
             const CNF = (4 * design.finNum * Math.pow(design.finSpan/d, 2)) / (1 + Math.sqrt(1 + Math.pow(2*Lf / (design.finRoot + design.finTip), 2)));
-            
             const XF_local = (design.finSweep/3) * (design.finRoot + 2*design.finTip)/(design.finRoot + design.finTip) + (1/6) * (Math.pow(design.finRoot,2) + Math.pow(design.finTip,2) + design.finRoot*design.finTip)/(design.finRoot + design.finTip);
             const XF = design.noseLen + design.bodyLen - design.finRoot + XF_local;
 
-            mathData.COP = (CNN * XN + CNF * XF) / (CNN + CNF);
+            mathData.COP = (2.0 * XN + CNF * XF) / (2.0 + CNF);
             mathData.Margin = (mathData.COP - mathData.COM) / d;
 
             document.getElementById('hud-cg').innerText = mathData.COM.toFixed(1);
             document.getElementById('hud-cp').innerText = mathData.COP.toFixed(1);
             const marginEl = document.getElementById('hud-margin');
             marginEl.innerText = mathData.Margin.toFixed(2);
-            
             if(mathData.Margin < 1.0) marginEl.className = "text-2xl font-black mono text-red-500";
             else if(mathData.Margin > 3.0) marginEl.className = "text-2xl font-black mono text-amber-500";
             else marginEl.className = "text-2xl font-black mono text-emerald-400";
@@ -333,12 +331,17 @@
                 const fin = new THREE.Mesh(fG, mF); fin.rotation.y = (i * Math.PI * 2) / design.finNum; rocketGroup.add(fin); 
             }
 
-            const comOffset = (design.bodyLen + design.noseLen) - mathData.COM;
-            tube.position.y -= comOffset;
-            nose.position.y -= comOffset;
-            rocketGroup.children.forEach(c => { if(c.geometry.type === 'ExtrudeGeometry') c.position.y -= comOffset; });
+            // NEW: 3D Parachute Mesh (Hidden initially)
+            const chuteR = (design.chuteDia / 10) / 2; 
+            const chuteGeo = new THREE.SphereGeometry(chuteR, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            parachuteMesh = new THREE.Mesh(chuteGeo, new THREE.MeshBasicMaterial({ color: 0xeab308, side: THREE.DoubleSide, wireframe: true }));
+            parachuteMesh.position.y = L + design.noseLen + chuteR; // Put it above the nose
+            parachuteMesh.visible = false;
+            rocketGroup.add(parachuteMesh);
 
-            const totalLen = design.bodyLen + design.noseLen;
+            const comOffset = (design.bodyLen + design.noseLen) - mathData.COM;
+            rocketGroup.children.forEach(c => { c.position.y -= comOffset; });
+
             const markerScale = R * 1.5;
             comMarker.scale.set(markerScale, markerScale, markerScale);
             copMarker.scale.set(markerScale, markerScale, markerScale);
@@ -355,7 +358,13 @@
             if (mathData.Margin < 1.0) { showToast("Cannot launch: Rocket is unstable!", "error"); return; }
             
             document.getElementById('flight-hud').style.opacity = '1';
+            const phaseEl = document.getElementById('tele-phase');
+            phaseEl.innerText = "ASCENT";
+            phaseEl.className = "text-xs font-black tracking-[0.2em] uppercase text-orange-500";
+            
             isSimulating = true;
+            flightPhase = "ASCENT";
+            parachuteMesh.visible = false;
             simTime = 0; posX = 0; posY = 0; velX = 0; velY = 0; pitchAngle = 0; pitchRate = 0;
             trailPoints = [];
             lastFrameTime = performance.now();
@@ -375,6 +384,7 @@
             lastFrameTime = currentTime;
             simTime += dt;
 
+            // Engine & Mass
             let currentPropMass = activeMotor.propMass;
             let currentThrust = 0;
             if (simTime < activeMotor.burnTime) {
@@ -383,34 +393,56 @@
             } else { currentPropMass = 0; }
             const totalMass = mathData.dryMass + activeMotor.totalMass - activeMotor.propMass + currentPropMass;
 
+            // APOGEE DETECTION & RECOVERY
+            if (flightPhase === "ASCENT" && velY < 0 && posY > 5) {
+                flightPhase = "DESCENT";
+                parachuteMesh.visible = true;
+                const phaseEl = document.getElementById('tele-phase');
+                phaseEl.innerText = "DESCENT";
+                phaseEl.className = "text-xs font-black tracking-[0.2em] uppercase text-yellow-400";
+                showToast("Apogee reached! Deploying Parachute.", "success");
+            }
+
+            // Aerodynamics swapping based on phase
             const windSpeed = design.wind; 
             const relativeVelX = velX - windSpeed;
             const relativeVelY = velY;
+            const dynamicPressure = 0.5 * 1.225 * (Math.pow(relativeVelX, 2) + Math.pow(relativeVelY, 2));
+
+            let dragForce = 0;
             
-            let angleOfAttack = 0;
-            if (relativeVelY > 0.1) {
-                const flightPathAngle = Math.atan2(relativeVelX, relativeVelY);
-                angleOfAttack = pitchAngle - flightPathAngle; 
+            if (flightPhase === "ASCENT") {
+                // Rocket Body Drag
+                let angleOfAttack = 0;
+                if (relativeVelY > 0.1) {
+                    const flightPathAngle = Math.atan2(relativeVelX, relativeVelY);
+                    angleOfAttack = pitchAngle - flightPathAngle; 
+                }
+
+                const refArea = Math.PI * Math.pow((design.bodyDia/1000)/2, 2);
+                const normalForce = 2.0 * angleOfAttack * dynamicPressure * refArea; 
+                const cpDistance = (mathData.COP - mathData.COM) / 100; 
+                const restoringTorque = -normalForce * cpDistance;
+                
+                const totalL_meters = (design.bodyLen + design.noseLen) / 100;
+                const dampingTorque = -20.0 * pitchRate * (dynamicPressure + 0.1) * refArea * Math.pow(totalL_meters, 2);
+                
+                const angularAccel = (restoringTorque + dampingTorque) / mathData.momentOfInertia;
+                pitchRate += angularAccel * dt;
+                pitchAngle += pitchRate * dt;
+
+                dragForce = dynamicPressure * 0.6 * refArea; // Rocket Cd ~ 0.6
+            } else {
+                // Parachute Drag
+                const chuteRadiusMeters = (design.chuteDia / 100) / 2;
+                const chuteArea = Math.PI * Math.pow(chuteRadiusMeters, 2);
+                dragForce = dynamicPressure * 1.5 * chuteArea; // Parachute Cd ~ 1.5
+                
+                // Straighten rocket out as it hangs from chute
+                pitchAngle *= 0.95; 
+                pitchRate = 0;
             }
 
-            const dynamicPressure = 0.5 * 1.225 * (Math.pow(relativeVelX, 2) + Math.pow(relativeVelY, 2));
-            const refArea = Math.PI * Math.pow((design.bodyDia/1000)/2, 2);
-            const normalForce = 2.0 * angleOfAttack * dynamicPressure * refArea; 
-            
-            const cpDistance = (mathData.COP - mathData.COM) / 100; 
-            const restoringTorque = -normalForce * cpDistance;
-
-            // BUG FIXED: Added Aerodynamic Damping Torque (Cmq)
-            const totalL_meters = (design.bodyLen + design.noseLen) / 100;
-            const dampingTorque = -20.0 * pitchRate * (dynamicPressure + 0.1) * refArea * Math.pow(totalL_meters, 2);
-            
-            const totalTorque = restoringTorque + dampingTorque;
-            const angularAccel = totalTorque / mathData.momentOfInertia;
-            
-            pitchRate += angularAccel * dt;
-            pitchAngle += pitchRate * dt;
-
-            const dragForce = dynamicPressure * 0.6 * refArea;
             const dragX = dragForce * Math.sin(Math.atan2(relativeVelX, relativeVelY));
             const dragY = dragForce * Math.cos(Math.atan2(relativeVelX, relativeVelY));
 
@@ -425,15 +457,18 @@
             posX += velX * dt;
             posY += velY * dt;
 
+            // Ground Collision
             if (posY <= 0 && simTime > 0.5) {
                 posY = 0; velX = 0; velY = 0; pitchRate = 0; isSimulating = false;
-                setTimeout(() => document.getElementById('flight-hud').style.opacity = '0', 3000);
+                document.getElementById('tele-phase').innerText = "LANDED";
+                document.getElementById('tele-phase').className = "text-xs font-black tracking-[0.2em] uppercase text-emerald-400";
+                setTimeout(() => document.getElementById('flight-hud').style.opacity = '0', 4000);
             }
 
+            const totalVel = Math.sqrt(velX*velX + velY*velY);
             document.getElementById('tele-time').innerText = simTime.toFixed(1);
             document.getElementById('tele-alt').innerText = posY.toFixed(1);
-            document.getElementById('tele-x').innerText = posX.toFixed(1);
-            document.getElementById('tele-ang').innerText = (pitchAngle * (180/Math.PI)).toFixed(1);
+            document.getElementById('tele-vel').innerText = totalVel.toFixed(1);
             
             rocketGroup.position.set(posX * 0.1, posY * 0.1, 0);
             rocketGroup.rotation.z = -pitchAngle; 

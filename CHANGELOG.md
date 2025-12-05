@@ -2,6 +2,13 @@
 
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
 
+## Phase 4 — Recovery & Full Flight Profile
+### [1.4.0] - 05/12/2025 (Parachute Deployment)
+- Built an Apogee Detection algorithm into the physics loop (detects exactly when vertical velocity goes negative).
+- Implemented a Recovery System UI with an adjustable Parachute Diameter.
+- Programmed a secondary aerodynamic drag state. When the parachute deploys, the simulation dynamically swaps the reference area and drag coefficient to simulate terminal velocity descent.
+- Added a 3D visual parachute that pops out at apogee!
+
 ## Phase 3 — Aerodynamics
 ### [1.3.1] - 14/11/2025 (The Damping Fix)
 - FIXED THE TUMBLE BUG! I researched aerospace physics and discovered pitch damping derivatives ($C_{mq}$). 
