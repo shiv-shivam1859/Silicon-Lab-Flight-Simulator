@@ -34,7 +34,7 @@
         .modern-select { appearance: none; background-color: transparent; }
         .modern-select option { background-color: #1e293b; color: #f8fafc; }
         
-        input[type="color"] { -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
+        input[type="color"] { -webkit-appearance: none; appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
         
         input[type=number]::-webkit-inner-spin-button, 
@@ -53,7 +53,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Flight Core v1.4.0</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Env Core v1.5.0</p>
             </div>
         </div>
 
@@ -193,7 +193,7 @@
         let comMarker, copMarker;
         
         let isSimulating = false;
-        let flightPhase = "PAD"; // PAD, ASCENT, DESCENT, LANDED
+        let flightPhase = "PAD"; 
         let simTime = 0, posX = 0, posY = 0, velX = 0, velY = 0;
         let pitchAngle = 0, pitchRate = 0; 
         let lastFrameTime = 0;
@@ -234,15 +234,42 @@
             renderer.setSize(container.clientWidth, container.clientHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             
-            scene = new THREE.Scene(); scene.background = new THREE.Color(0x020617);
+            scene = new THREE.Scene(); 
+            scene.background = new THREE.Color(0x020617);
+            
+            // NEW: Atmospheric Fog
+            scene.fog = new THREE.FogExp2(0x020617, 0.005);
+
             camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 20000);
             
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6)); 
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(20, 100, 20); scene.add(dirLight);
-            scene.add(new THREE.GridHelper(500, 100, 0x1e293b, 0x0f172a));
+            // NEW: Upgraded Lighting
+            scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); 
+            dirLight.position.set(50, 100, 50); 
+            scene.add(dirLight);
+            
+            // NEW: Ground Plane & Launch Pad
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(2000, 2000), 
+                new THREE.MeshStandardMaterial({color: 0x0f172a, roughness: 0.8, metalness: 0.2})
+            );
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+
+            const pad = new THREE.Mesh(
+                new THREE.CylinderGeometry(5, 5.5, 0.5, 32),
+                new THREE.MeshStandardMaterial({color: 0x334155, roughness: 0.3, metalness: 0.8})
+            );
+            pad.position.y = 0.25; // Sits on top of ground
+            scene.add(pad);
+
+            // Add a grid on the ground for scale
+            const gridHelper = new THREE.GridHelper(500, 100, 0x1e293b, 0x0f172a);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
             
             controls = new THREE.OrbitControls(camera, renderer.domElement); 
-            controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 + 0.1;
+            controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't allow camera under ground
             
             rocketGroup = new THREE.Group(); scene.add(rocketGroup);
             
@@ -261,7 +288,11 @@
             });
             
             updateMotorSpecs(); updateAll();
-            camera.position.set(30, 20, 30); controls.target.set(0, 20, 0); controls.update();
+            
+            // Set initial camera view
+            camera.position.set(30, 15, 30); 
+            controls.target.set(0, 10, 0); 
+            controls.update();
             requestAnimationFrame(physicsLoop);
         }
 
@@ -331,16 +362,18 @@
                 const fin = new THREE.Mesh(fG, mF); fin.rotation.y = (i * Math.PI * 2) / design.finNum; rocketGroup.add(fin); 
             }
 
-            // NEW: 3D Parachute Mesh (Hidden initially)
             const chuteR = (design.chuteDia / 10) / 2; 
             const chuteGeo = new THREE.SphereGeometry(chuteR, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
             parachuteMesh = new THREE.Mesh(chuteGeo, new THREE.MeshBasicMaterial({ color: 0xeab308, side: THREE.DoubleSide, wireframe: true }));
-            parachuteMesh.position.y = L + design.noseLen + chuteR; // Put it above the nose
+            parachuteMesh.position.y = L + design.noseLen + chuteR; 
             parachuteMesh.visible = false;
             rocketGroup.add(parachuteMesh);
 
             const comOffset = (design.bodyLen + design.noseLen) - mathData.COM;
             rocketGroup.children.forEach(c => { c.position.y -= comOffset; });
+
+            // Sit perfectly on the 0.5 unit launch pad
+            rocketGroup.position.y = 0.5;
 
             const markerScale = R * 1.5;
             comMarker.scale.set(markerScale, markerScale, markerScale);
@@ -368,7 +401,7 @@
             simTime = 0; posX = 0; posY = 0; velX = 0; velY = 0; pitchAngle = 0; pitchRate = 0;
             trailPoints = [];
             lastFrameTime = performance.now();
-            rocketGroup.position.set(0, 0, 0);
+            rocketGroup.position.set(0, 0.5, 0); // Start on pad
             rocketGroup.rotation.z = 0;
         }
 
@@ -384,7 +417,6 @@
             lastFrameTime = currentTime;
             simTime += dt;
 
-            // Engine & Mass
             let currentPropMass = activeMotor.propMass;
             let currentThrust = 0;
             if (simTime < activeMotor.burnTime) {
@@ -393,7 +425,6 @@
             } else { currentPropMass = 0; }
             const totalMass = mathData.dryMass + activeMotor.totalMass - activeMotor.propMass + currentPropMass;
 
-            // APOGEE DETECTION & RECOVERY
             if (flightPhase === "ASCENT" && velY < 0 && posY > 5) {
                 flightPhase = "DESCENT";
                 parachuteMesh.visible = true;
@@ -403,7 +434,6 @@
                 showToast("Apogee reached! Deploying Parachute.", "success");
             }
 
-            // Aerodynamics swapping based on phase
             const windSpeed = design.wind; 
             const relativeVelX = velX - windSpeed;
             const relativeVelY = velY;
@@ -412,7 +442,6 @@
             let dragForce = 0;
             
             if (flightPhase === "ASCENT") {
-                // Rocket Body Drag
                 let angleOfAttack = 0;
                 if (relativeVelY > 0.1) {
                     const flightPathAngle = Math.atan2(relativeVelX, relativeVelY);
@@ -431,14 +460,12 @@
                 pitchRate += angularAccel * dt;
                 pitchAngle += pitchRate * dt;
 
-                dragForce = dynamicPressure * 0.6 * refArea; // Rocket Cd ~ 0.6
+                dragForce = dynamicPressure * 0.6 * refArea; 
             } else {
-                // Parachute Drag
                 const chuteRadiusMeters = (design.chuteDia / 100) / 2;
                 const chuteArea = Math.PI * Math.pow(chuteRadiusMeters, 2);
-                dragForce = dynamicPressure * 1.5 * chuteArea; // Parachute Cd ~ 1.5
+                dragForce = dynamicPressure * 1.5 * chuteArea; 
                 
-                // Straighten rocket out as it hangs from chute
                 pitchAngle *= 0.95; 
                 pitchRate = 0;
             }
@@ -470,14 +497,16 @@
             document.getElementById('tele-alt').innerText = posY.toFixed(1);
             document.getElementById('tele-vel').innerText = totalVel.toFixed(1);
             
-            rocketGroup.position.set(posX * 0.1, posY * 0.1, 0);
+            // Render offsets
+            const renderY = (posY * 0.1) + 0.5; // Account for pad height
+            rocketGroup.position.set(posX * 0.1, renderY, 0);
             rocketGroup.rotation.z = -pitchAngle; 
             
-            camera.position.set(posX * 0.1, (posY * 0.1) + 20, 30);
-            controls.target.set(posX * 0.1, (posY * 0.1) + 10, 0);
+            camera.position.set(posX * 0.1, renderY + 15, 30);
+            controls.target.set(posX * 0.1, renderY + 5, 0);
             
             if(simTime % 0.1 < dt) {
-                trailPoints.push(new THREE.Vector3(posX * 0.1, posY * 0.1, 0));
+                trailPoints.push(new THREE.Vector3(posX * 0.1, renderY, 0));
                 trailGeom.setFromPoints(trailPoints);
             }
 

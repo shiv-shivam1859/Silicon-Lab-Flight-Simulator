@@ -1,6 +1,12 @@
-# Silicon Lab - My Development Log
+# Silicon-Lab-Flight-Simulator - My Development Log
 
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
+
+## Phase 5 — Environment Engine
+### [1.5.0] - 10/01/2026 (Launch Pad & Atmosphere)
+- Overhauled the 3D scene rendering. Replaced the basic grid with an infinite ground plane and atmospheric depth fog.
+- Built a procedural metallic launch pad for the rocket to sit on.
+- Upgraded the lighting system with hemispheric and directional lights to make the metallic reflections on the rocket and pad look significantly more realistic.
 
 ## Phase 4 — Recovery & Full Flight Profile
 ### [1.4.0] - 05/12/2025 (Parachute Deployment)
