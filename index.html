@@ -53,7 +53,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Env Core v1.5.0</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Env Core v1.5.1</p>
             </div>
         </div>
 
@@ -237,18 +237,15 @@
             scene = new THREE.Scene(); 
             scene.background = new THREE.Color(0x020617);
             
-            // NEW: Atmospheric Fog
             scene.fog = new THREE.FogExp2(0x020617, 0.005);
 
             camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 20000);
             
-            // NEW: Upgraded Lighting
             scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
             const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); 
             dirLight.position.set(50, 100, 50); 
             scene.add(dirLight);
             
-            // NEW: Ground Plane & Launch Pad
             const ground = new THREE.Mesh(
                 new THREE.PlaneGeometry(2000, 2000), 
                 new THREE.MeshStandardMaterial({color: 0x0f172a, roughness: 0.8, metalness: 0.2})
@@ -260,16 +257,15 @@
                 new THREE.CylinderGeometry(5, 5.5, 0.5, 32),
                 new THREE.MeshStandardMaterial({color: 0x334155, roughness: 0.3, metalness: 0.8})
             );
-            pad.position.y = 0.25; // Sits on top of ground
+            pad.position.y = 0.25;
             scene.add(pad);
 
-            // Add a grid on the ground for scale
             const gridHelper = new THREE.GridHelper(500, 100, 0x1e293b, 0x0f172a);
             gridHelper.position.y = 0.01;
             scene.add(gridHelper);
             
             controls = new THREE.OrbitControls(camera, renderer.domElement); 
-            controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't allow camera under ground
+            controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 - 0.05; 
             
             rocketGroup = new THREE.Group(); scene.add(rocketGroup);
             
@@ -289,7 +285,6 @@
             
             updateMotorSpecs(); updateAll();
             
-            // Set initial camera view
             camera.position.set(30, 15, 30); 
             controls.target.set(0, 10, 0); 
             controls.update();
@@ -372,7 +367,6 @@
             const comOffset = (design.bodyLen + design.noseLen) - mathData.COM;
             rocketGroup.children.forEach(c => { c.position.y -= comOffset; });
 
-            // Sit perfectly on the 0.5 unit launch pad
             rocketGroup.position.y = 0.5;
 
             const markerScale = R * 1.5;
@@ -401,7 +395,7 @@
             simTime = 0; posX = 0; posY = 0; velX = 0; velY = 0; pitchAngle = 0; pitchRate = 0;
             trailPoints = [];
             lastFrameTime = performance.now();
-            rocketGroup.position.set(0, 0.5, 0); // Start on pad
+            rocketGroup.position.set(0, 0.5, 0); 
             rocketGroup.rotation.z = 0;
         }
 
@@ -412,8 +406,9 @@
 
             if (!isSimulating) return;
 
+            // BUG FIX: Tighter delta-time constraint to prevent numerical explosions
             let dt = (currentTime - lastFrameTime) / 1000; 
-            if(dt > 0.1) dt = 0.1; 
+            if(dt > 0.05) dt = 0.05; 
             lastFrameTime = currentTime;
             simTime += dt;
 
@@ -446,6 +441,10 @@
                 if (relativeVelY > 0.1) {
                     const flightPathAngle = Math.atan2(relativeVelX, relativeVelY);
                     angleOfAttack = pitchAngle - flightPathAngle; 
+                    
+                    // BUG FIX: Clamp Angle of Attack to prevent infinity scaling forces at Max-Q
+                    if (angleOfAttack > 0.3) angleOfAttack = 0.3;
+                    if (angleOfAttack < -0.3) angleOfAttack = -0.3;
                 }
 
                 const refArea = Math.PI * Math.pow((design.bodyDia/1000)/2, 2);
@@ -458,6 +457,10 @@
                 
                 const angularAccel = (restoringTorque + dampingTorque) / mathData.momentOfInertia;
                 pitchRate += angularAccel * dt;
+                
+                // BUG FIX: Apply numerical dampener to pitch rate to prevent Euler oscillation
+                pitchRate *= 0.95;
+                
                 pitchAngle += pitchRate * dt;
 
                 dragForce = dynamicPressure * 0.6 * refArea; 
@@ -484,7 +487,6 @@
             posX += velX * dt;
             posY += velY * dt;
 
-            // Ground Collision
             if (posY <= 0 && simTime > 0.5) {
                 posY = 0; velX = 0; velY = 0; pitchRate = 0; isSimulating = false;
                 document.getElementById('tele-phase').innerText = "LANDED";
@@ -497,8 +499,7 @@
             document.getElementById('tele-alt').innerText = posY.toFixed(1);
             document.getElementById('tele-vel').innerText = totalVel.toFixed(1);
             
-            // Render offsets
-            const renderY = (posY * 0.1) + 0.5; // Account for pad height
+            const renderY = (posY * 0.1) + 0.5; 
             rocketGroup.position.set(posX * 0.1, renderY, 0);
             rocketGroup.rotation.z = -pitchAngle; 
             

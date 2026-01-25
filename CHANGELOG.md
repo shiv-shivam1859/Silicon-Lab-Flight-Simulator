@@ -3,6 +3,10 @@
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
 
 ## Phase 5 — Environment Engine
+### [1.5.1] - 25/01/2026 (Max-Q Stability Hotfix)
+- Discovered a massive numerical instability bug. At Max-Q (peak velocity), the dynamic pressure was so high that my basic Euler integration couldn't handle the restorative torque, causing the rocket to overcorrect and death-spin.
+- Patched the physics loop by clamping the maximum Angle of Attack, tightening the delta-time bounds, and adding a numerical dampener to the pitch rate.
+
 ### [1.5.0] - 10/01/2026 (Launch Pad & Atmosphere)
 - Overhauled the 3D scene rendering. Replaced the basic grid with an infinite ground plane and atmospheric depth fog.
 - Built a procedural metallic launch pad for the rocket to sit on.
