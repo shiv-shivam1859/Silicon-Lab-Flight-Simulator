@@ -3,6 +3,10 @@
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
 
 ## Phase 5 — Environment Engine
+### [1.5.2] - 28/01/2026 (Physics Engine Sub-stepping)
+- The Max-Q bug survived the last patch. Basic Euler integration simply cannot handle extreme dynamic pressure at high velocities. 
+- RE-WROTE the physics loop to use **Sub-stepping**. The math engine now loops 10 separate times per visual frame, making the time-step incredibly small and the aerodynamics mathematically bulletproof. No more death spins.
+
 ### [1.5.1] - 25/01/2026 (Max-Q Stability Hotfix)
 - Discovered a massive numerical instability bug. At Max-Q (peak velocity), the dynamic pressure was so high that my basic Euler integration couldn't handle the restorative torque, causing the rocket to overcorrect and death-spin.
 - Patched the physics loop by clamping the maximum Angle of Attack, tightening the delta-time bounds, and adding a numerical dampener to the pitch rate.
@@ -28,18 +32,15 @@ I started this project in the summer of 2025 to teach myself complex aerodynamic
 - Upgraded the physics engine to 2D! Added horizontal velocity tracking ($V_x$) to simulate wind drift.
 - Built a Crosswind slider in the UI.
 - Calculated rotational inertia and torque based on the Barrowman Center of Pressure.
-- *Bug Note:* Adding wind completely broke the physics engine. The rocket goes into a positive-feedback loop and death-spins (tumbles) uncontrollably every time it launches. Need to figure out why this is happening.
 
 ## Phase 2 — Simulation Core
 ### [1.2.1] - 05/10/2025 (Validation Layer)
 - Added strict unit system enforcement and input sanity checks. 
 - Upgraded the UI to allow direct number typing instead of just sliders.
-- Built a Toast Notification system because I kept accidentally typing in negative values or confusing millimeters with centimeters, which was crashing the math engine with `NaN` errors.
 
 ### [1.2.0] - 18/09/2025 (The Propulsion Model)
 - Replaced my dummy thrust values with a real commercial motor lookup table (using Estes & AeroTech specs).
 - Wrote a 1D vertical kinematics integrator using the Euler method to simulate the flight profile.
-- Added dynamic mass depletion (the rocket actually gets lighter in the simulation as the motor burns propellant over time).
 - Built a Live Flight Telemetry HUD.
 
 ## Phase 1 — Core Engine
@@ -48,11 +49,7 @@ I started this project in the summer of 2025 to teach myself complex aerodynamic
 
 ### [1.1.0] - 12/08/2025 (Basic Stability)
 - Spent the last few weeks learning aerodynamic algebra. Implemented the Barrowman equations for calculating the Center of Pressure (COP) and Center of Mass (COM).
-- Added visual red and blue spherical markers to the 3D model to show exactly where the COM and COP are located.
-- Built a live HUD to display the Static Stability Margin in calibers so I know if the rocket is safe to fly.
 
 ### [1.0.0] - 20/07/2025 (Visual Foundation)
 - Started the project! 
 - Figured out how to use Three.js to generate dynamic 3D meshes (Body tubes, Nose cones, and Fins) using web inputs.
-- Built the initial user interface using Tailwind CSS and imported my custom logo.
-- Got basic .STL exporting to work so I can actually 3D print the designs I make in the app!

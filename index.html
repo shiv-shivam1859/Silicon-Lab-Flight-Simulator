@@ -34,7 +34,7 @@
         .modern-select { appearance: none; background-color: transparent; }
         .modern-select option { background-color: #1e293b; color: #f8fafc; }
         
-        input[type="color"] { -webkit-appearance: none; appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
+        input[type="color"] { appearance: none; -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
         
         input[type=number]::-webkit-inner-spin-button, 
@@ -53,7 +53,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Env Core v1.5.1</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Env Core v1.5.2</p>
             </div>
         </div>
 
@@ -115,9 +115,9 @@
                 <div class="flex flex-col gap-1.5">
                     <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider">
                         <span>Crosswind (m/s)</span>
-                        <input type="number" id="v-wind" value="2" step="0.1" class="w-12 bg-transparent text-emerald-400 mono text-right outline-none border-b border-transparent focus:border-emerald-400 transition-colors" onchange="validateAndSync('wind', 0, 30)">
+                        <input type="number" id="v-wind" value="5" step="0.1" class="w-12 bg-transparent text-emerald-400 mono text-right outline-none border-b border-transparent focus:border-emerald-400 transition-colors" onchange="validateAndSync('wind', 0, 30)">
                     </div>
-                    <input type="range" id="i-wind" min="0" max="30" value="2" step="0.1" class="w-full" oninput="syncFromSlider('wind')">
+                    <input type="range" id="i-wind" min="0" max="30" value="5" step="0.1" class="w-full" oninput="syncFromSlider('wind')">
                 </div>
             </section>
 
@@ -179,7 +179,7 @@
     </main>
 
     <script>
-        let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, wind: 2, chuteDia: 30, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
+        let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, wind: 5, chuteDia: 30, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
         let mathData = { COM: 0, COP: 0, Margin: 0, dryMass: 0.150, momentOfInertia: 0.01 }; 
         
         const motors = {
@@ -399,17 +399,10 @@
             rocketGroup.rotation.z = 0;
         }
 
-        function physicsLoop(currentTime) {
-            requestAnimationFrame(physicsLoop);
-            controls.update();
-            renderer.render(scene, camera);
-
-            if (!isSimulating) return;
-
-            // BUG FIX: Tighter delta-time constraint to prevent numerical explosions
-            let dt = (currentTime - lastFrameTime) / 1000; 
-            if(dt > 0.05) dt = 0.05; 
-            lastFrameTime = currentTime;
+        // --- NEW ARCHITECTURE: SEPARATING MATH FROM RENDER ---
+        
+        function updatePhysics(dt) {
+            // This math now runs at micro-step speeds to ensure stability at Max-Q
             simTime += dt;
 
             let currentPropMass = activeMotor.propMass;
@@ -441,10 +434,6 @@
                 if (relativeVelY > 0.1) {
                     const flightPathAngle = Math.atan2(relativeVelX, relativeVelY);
                     angleOfAttack = pitchAngle - flightPathAngle; 
-                    
-                    // BUG FIX: Clamp Angle of Attack to prevent infinity scaling forces at Max-Q
-                    if (angleOfAttack > 0.3) angleOfAttack = 0.3;
-                    if (angleOfAttack < -0.3) angleOfAttack = -0.3;
                 }
 
                 const refArea = Math.PI * Math.pow((design.bodyDia/1000)/2, 2);
@@ -453,13 +442,17 @@
                 const restoringTorque = -normalForce * cpDistance;
                 
                 const totalL_meters = (design.bodyLen + design.noseLen) / 100;
-                const dampingTorque = -20.0 * pitchRate * (dynamicPressure + 0.1) * refArea * Math.pow(totalL_meters, 2);
+                
+                // MASSIVELY INCREASED DAMPING to instantly kill oscillations
+                const dampingTorque = -500.0 * pitchRate * (dynamicPressure + 0.1) * refArea * Math.pow(totalL_meters, 2);
                 
                 const angularAccel = (restoringTorque + dampingTorque) / mathData.momentOfInertia;
+                
                 pitchRate += angularAccel * dt;
                 
-                // BUG FIX: Apply numerical dampener to pitch rate to prevent Euler oscillation
-                pitchRate *= 0.95;
+                // Hard clamp on rotation speed as a final safety net
+                if (pitchRate > 5) pitchRate = 5;
+                if (pitchRate < -5) pitchRate = -5;
                 
                 pitchAngle += pitchRate * dt;
 
@@ -486,7 +479,29 @@
             velY += accelY * dt;
             posX += velX * dt;
             posY += velY * dt;
+        }
 
+        function physicsLoop(currentTime) {
+            requestAnimationFrame(physicsLoop);
+            controls.update();
+            renderer.render(scene, camera);
+
+            if (!isSimulating) return;
+
+            let frameDt = (currentTime - lastFrameTime) / 1000; 
+            if(frameDt > 0.1) frameDt = 0.1; // Max 100ms per frame jump
+            lastFrameTime = currentTime;
+
+            // NEW: SUB-STEPPING
+            // Run the physics math 10 times for every 1 time we render the graphics
+            const subSteps = 10;
+            const simDt = frameDt / subSteps;
+            
+            for(let i = 0; i < subSteps; i++) {
+                updatePhysics(simDt);
+            }
+
+            // Post-Physics Rendering Updates
             if (posY <= 0 && simTime > 0.5) {
                 posY = 0; velX = 0; velY = 0; pitchRate = 0; isSimulating = false;
                 document.getElementById('tele-phase').innerText = "LANDED";
@@ -506,7 +521,7 @@
             camera.position.set(posX * 0.1, renderY + 15, 30);
             controls.target.set(posX * 0.1, renderY + 5, 0);
             
-            if(simTime % 0.1 < dt) {
+            if(simTime % 0.1 < frameDt) {
                 trailPoints.push(new THREE.Vector3(posX * 0.1, renderY, 0));
                 trailGeom.setFromPoints(trailPoints);
             }
