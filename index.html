@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Silicon Lab - Aerospace Simulator</title>
+    <title>Silicon Lab - Rocket Engineering & Simulation</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
@@ -20,519 +22,1854 @@
         .mono { font-family: 'JetBrains Mono', monospace; }
         
         #canvas-container { flex-grow: 1; position: relative; background-color: #020617; overflow: hidden; min-height: 50vh; }
-        #gl-canvas { display: block; outline: none; width: 100%; height: 100%; }
+        #gl-canvas { display: block; outline: none; width: 100%; height: 100%; transition: clip-path 0.3s ease; }
         
-        .glass-panel { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 0.75rem; backdrop-filter: blur(10px); }
+        /* Modern Glass & UI Elements */
+        .glass-panel { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 0.75rem; }
+        .glass-hud { background: rgba(2, 6, 23, 0.65); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.8); }
+        .recessed-panel { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.03); border-radius: 0.5rem; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2); }
         
+        /* Scrollbars */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-        input[type=range] { height: 2px; border-radius: 1px; background: rgba(255,255,255,0.1); appearance: none; cursor: pointer; }
-        input[type=range]::-webkit-slider-thumb { appearance: none; height: 12px; width: 12px; border-radius: 50%; background: #fff; border: 2px solid #0ea5e9; }
+        /* Surgical Sliders */
+        input[type=range] { height: 2px; border-radius: 1px; background: rgba(255,255,255,0.1); appearance: none; cursor: pointer; transition: background 0.2s; }
+        input[type=range]:hover { background: rgba(255,255,255,0.2); }
+        input[type=range]::-webkit-slider-thumb { appearance: none; height: 12px; width: 12px; border-radius: 50%; background: #fff; border: 2px solid #0ea5e9; box-shadow: 0 0 10px rgba(14, 165, 233, 0.4); transition: transform 0.1s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); box-shadow: 0 0 14px rgba(14, 165, 233, 0.6); }
 
-        .modern-select { appearance: none; background-color: transparent; }
+        /* Modern Select */
+        .modern-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.6rem center; transition: all 0.2s ease; }
+        .modern-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5); }
+        .modern-select optgroup { background-color: #0f172a; color: #94a3b8; font-weight: 700; }
         .modern-select option { background-color: #1e293b; color: #f8fafc; }
-        
-        input[type="color"] { appearance: none; -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; }
+
+        /* Custom Color Picker */
+        input[type="color"] { appearance: none; -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.1); }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
         
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        /* Shimmer & Toasts */
+        .loading-shimmer { background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.02) 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite linear; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        
+        #toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(100px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s; opacity: 0; z-index: 100; border: 1px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        /* Draggable HUD Elements */
+        #stability-info { transition: border-color 0.2s, box-shadow 0.2s; }
+        #stability-info.dragging { border-color: rgba(14, 165, 233, 0.5); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.8), 0 0 30px rgba(14, 165, 233, 0.15); }
+        .drag-handle { cursor: grab; }
+        .drag-handle:active { cursor: grabbing; }
+
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { appearance: none; -moz-appearance: textfield; }
+        
+        .status-fail { color: #f87171; text-shadow: 0 0 10px rgba(248,113,113,0.3); }
+        .status-warn { color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.3); }
+        .status-pass { color: #34d399; text-shadow: 0 0 10px rgba(52,211,153,0.3); }
     </style>
 </head>
 <body>
 
-    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"></div>
-
+    <!-- SIDEBAR (Left) -->
     <aside class="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/5 bg-slate-950 flex flex-col z-50 relative shadow-2xl shrink-0 h-[50vh] lg:h-full">
         
-        <div class="px-6 pt-6 pb-4 shrink-0 flex items-center gap-3 border-b border-white/5">
-            <div class="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.4)] flex items-center justify-center">
-                <img src="Silicon Logo.png" alt="Logo" class="w-6 h-6 object-contain drop-shadow-md">
+        <!-- Header -->
+        <div class="px-6 pt-6 pb-4 shrink-0 flex items-center gap-3">
+            <div class="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.4)]">
+                <i data-lucide="rocket" class="text-white w-5 h-5"></i>
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-white leading-none">SILICON <span class="text-blue-500">LAB</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Env Core v1.5.2</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Advanced Aero Simulator</p>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6 pt-4 custom-scrollbar space-y-5">
+        <!-- Tab Navigation (Pill Style) -->
+        <div class="px-6 pb-4 shrink-0 border-b border-white/5">
+            <div class="flex p-1 bg-slate-900/80 border border-white/5 rounded-lg">
+                <button id="tab-design" onclick="switchTab('design')" class="flex-1 text-[10px] font-bold uppercase tracking-widest py-2 rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-all flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(59,130,246,0.1)]">Engineering</button>
+                <button id="tab-ai" onclick="switchTab('ai')" class="flex-1 text-[10px] font-bold uppercase tracking-widest py-2 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/5 border border-transparent transition-all flex items-center justify-center gap-1.5"><i data-lucide="sparkles" class="w-3 h-3"></i> AI Lab</button>
+                <button id="tab-flight" onclick="switchTab('flight')" class="flex-1 text-[10px] font-bold uppercase tracking-widest py-2 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/5 border border-transparent transition-all flex items-center justify-center gap-1.5">Simulation</button>
+            </div>
+        </div>
+
+        <!-- Panels Container -->
+        <div class="flex-1 overflow-y-auto p-6 pt-4 custom-scrollbar">
             
-            <section class="glass-panel p-4 space-y-4">
-                <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em]">Airframe & Geometry</label>
-                </div>
-                <div class="grid grid-cols-2 gap-x-6 gap-y-4">
-                    <div class="flex flex-col gap-1.5">
-                        <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length (cm)</span><input type="number" id="v-bodyLen" value="40" class="w-12 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('bodyLen', 10, 200)"></div>
-                        <input type="range" id="i-bodyLen" min="10" max="200" value="40" class="w-full" oninput="syncFromSlider('bodyLen')">
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Dia (mm)</span><input type="number" id="v-bodyDia" value="24.8" step="0.1" class="w-12 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('bodyDia', 10, 150)"></div>
-                        <input type="range" id="i-bodyDia" min="10" max="150" value="24.8" step="0.1" class="w-full" oninput="syncFromSlider('bodyDia')">
+            <!-- 1. ENGINEERING PANEL -->
+            <div id="design-panel" class="space-y-5 flex flex-col min-h-full">
+                
+                <div id="custom-model-badge" class="hidden bg-indigo-500/10 border border-indigo-500/30 p-3 rounded-xl flex items-start gap-3">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-indigo-400 mt-0.5 shrink-0"></i>
+                    <div>
+                        <div class="text-xs font-bold text-indigo-300">Custom STL Active</div>
+                        <button onclick="resetToDefaultMesh()" class="mt-2 text-[9px] font-bold uppercase tracking-wider text-slate-300 bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-md hover:bg-slate-700 transition-colors">Remove Model</button>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-x-6 gap-y-4 pt-2 border-t border-white/5">
-                    <div class="col-span-2 flex flex-col gap-1.5">
-                        <select id="i-noseType" class="modern-select w-full bg-slate-900/50 border border-white/10 rounded-md p-2 text-xs text-white" onchange="updateAll()">
-                            <option value="ogive">Tangent Ogive Nose</option><option value="conical">Conical Nose</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-x-6 gap-y-4 pt-2 border-t border-white/5">
-                    <div class="col-span-2 flex flex-col gap-1.5">
-                        <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Count</span><input type="number" id="v-finNum" value="3" class="w-10 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('finNum', 3, 8)"></div>
-                        <input type="range" id="i-finNum" min="3" max="8" value="3" step="1" class="w-full" oninput="syncFromSlider('finNum')">
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Fin Span (cm)</span><input type="number" id="v-finSpan" value="2.5" step="0.1" class="w-10 bg-transparent text-cyan-400 mono text-right outline-none border-b border-transparent focus:border-cyan-400 transition-colors" onchange="validateAndSync('finSpan', 1, 30)"></div>
-                        <input type="range" id="i-finSpan" min="1" max="30" value="2.5" step="0.1" class="w-full" oninput="syncFromSlider('finSpan')">
-                    </div>
-                </div>
-            </section>
 
-            <section class="glass-panel p-4 space-y-4 border border-yellow-500/20 bg-yellow-900/10">
-                <div class="flex justify-between items-center border-b border-yellow-500/20 pb-3">
-                    <label class="text-[10px] font-bold text-yellow-300 uppercase tracking-[0.15em]">Recovery System</label>
-                    <i data-lucide="umbrella" class="w-4 h-4 text-yellow-500"></i>
-                </div>
-                <div class="flex flex-col gap-1.5">
-                    <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                        <span>Chute Dia (cm)</span>
-                        <input type="number" id="v-chuteDia" value="30" step="1" class="w-12 bg-transparent text-yellow-400 mono text-right outline-none border-b border-transparent focus:border-yellow-400 transition-colors" onchange="validateAndSync('chuteDia', 10, 200)">
+                <!-- Airframe -->
+                <section class="glass-panel p-4 space-y-4">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                        <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em] flex items-center gap-2"><i data-lucide="cylinder" class="w-3.5 h-3.5 text-blue-500"></i> Airframe</label>
+                        <div class="flex items-center gap-3">
+                            <select id="i-material" class="modern-select bg-transparent text-[10px] font-bold text-slate-400 border-none p-0 pr-4 hover:text-white" onchange="updateAll()">
+                                <option value="cardboard">Cardboard</option><option value="fiberglass">Fiberglass</option><option value="carbon">Carbon Fiber</option>
+                            </select>
+                            <input type="color" id="i-colBody" value="#e2e8f0" onchange="updateAll()">
+                        </div>
                     </div>
-                    <input type="range" id="i-chuteDia" min="10" max="200" value="30" step="1" class="w-full" oninput="syncFromSlider('chuteDia')">
-                </div>
-                <p class="text-[8px] text-yellow-500/70 uppercase tracking-wider text-center mt-2 border-t border-yellow-500/10 pt-2">Deploy at Apogee</p>
-            </section>
-
-            <section class="glass-panel p-4 space-y-4 border border-emerald-500/20 bg-emerald-900/10">
-                <div class="flex justify-between items-center border-b border-emerald-500/20 pb-3">
-                    <label class="text-[10px] font-bold text-emerald-300 uppercase tracking-[0.15em]">Environment</label>
-                    <i data-lucide="wind" class="w-4 h-4 text-emerald-500"></i>
-                </div>
-                <div class="flex flex-col gap-1.5">
-                    <div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                        <span>Crosswind (m/s)</span>
-                        <input type="number" id="v-wind" value="5" step="0.1" class="w-12 bg-transparent text-emerald-400 mono text-right outline-none border-b border-transparent focus:border-emerald-400 transition-colors" onchange="validateAndSync('wind', 0, 30)">
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length</span><span id="v-bodyLen" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-bodyLen" class="w-full" oninput="updateAll()"></div>
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Diameter</span><span id="v-bodyDia" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-bodyDia" class="w-full" oninput="updateAll()"></div>
+                        <div class="col-span-2 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Wall Thickness</span><span id="v-wall" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-wall" class="w-full" oninput="updateAll()"></div>
+                        
+                        <div class="col-span-2 pt-3 border-t border-white/5 space-y-3">
+                            <div class="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 flex justify-between"><span>Aft Transition (Boattail)</span></div>
+                            <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                                <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length</span><span id="v-boatLen" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-boatLen" class="w-full" oninput="updateAll()"></div>
+                                <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Aft Dia</span><span id="v-boatAft" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-boatAft" class="w-full" oninput="updateAll()"></div>
+                            </div>
+                        </div>
                     </div>
-                    <input type="range" id="i-wind" min="0" max="30" value="5" step="0.1" class="w-full" oninput="syncFromSlider('wind')">
-                </div>
-            </section>
+                </section>
 
-            <section class="glass-panel p-4 space-y-4 border border-blue-500/20 bg-blue-900/10">
-                <div class="flex justify-between items-center border-b border-blue-500/20 pb-3">
-                    <label class="text-[10px] font-bold text-blue-300 uppercase tracking-[0.15em]">Propulsion Model</label>
-                    <i data-lucide="flame" class="w-4 h-4 text-orange-500"></i>
+                <!-- Nose Cone -->
+                <section class="glass-panel p-4 space-y-4">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                        <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em] flex items-center gap-2"><i data-lucide="triangle" class="w-3.5 h-3.5 text-blue-500"></i> Nose Cone</label>
+                        <input type="color" id="i-colNose" value="#ef4444" onchange="updateAll()">
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                        <div class="col-span-2 flex flex-col gap-1.5">
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Profile Shape</span>
+                            <select id="i-noseType" class="modern-select w-full bg-slate-900/50 border border-white/10 rounded-md p-2 text-xs text-white" onchange="updateAll()">
+                                <optgroup label="Low Drag Aero"><option value="ogive">Tangent Ogive</option><option value="parabolic">Parabolic</option><option value="vonkarman">Von Kármán</option></optgroup>
+                                <optgroup label="Standard"><option value="conical">Conical</option></optgroup>
+                            </select>
+                        </div>
+                        <div class="col-span-2 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Length</span><span id="v-noseLen" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-noseLen" class="w-full" oninput="updateAll()"></div>
+                    </div>
+                </section>
+
+                <!-- Fins -->
+                <section class="glass-panel p-4 space-y-4">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                        <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em] flex items-center gap-2"><i data-lucide="layers" class="w-3.5 h-3.5 text-blue-500"></i> Fin Geometry</label>
+                        <div class="flex items-center gap-3">
+                            <select id="i-finMat" class="modern-select bg-transparent text-[10px] font-bold text-slate-400 border-none p-0 pr-4 hover:text-white" onchange="updateAll()">
+                                <option value="balsa">Balsa Wood</option><option value="plywood" selected>Birch Plywood</option><option value="g10">G10 Fiberglass</option><option value="carbon">Carbon Fiber</option>
+                            </select>
+                            <input type="color" id="i-colFins" value="#ef4444" onchange="updateAll()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Count</span><span id="v-finNum" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-finNum" class="w-full" oninput="updateAll()"></div>
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Thickness</span><span id="v-finThick" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-finThick" class="w-full" oninput="updateAll()"></div>
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Root Chord</span><span id="v-finRoot" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-finRoot" class="w-full" oninput="updateAll()"></div>
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Tip Chord</span><span id="v-finTip" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-finTip" class="w-full" oninput="updateAll()"></div>
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Span</span><span id="v-finSpan" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-finSpan" class="w-full" oninput="updateAll()"></div>
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Sweep</span><span id="v-finSweep" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-finSweep" class="w-full" oninput="updateAll()"></div>
+                        <div class="col-span-2 pt-3 border-t border-white/5 flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Offset from Base</span><span id="v-finOff" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-finOff" class="w-full" oninput="updateAll()"></div>
+                    </div>
+                </section>
+
+                <!-- Propulsion & Recovery -->
+                <section class="glass-panel p-4 space-y-4">
+                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em] flex items-center gap-2 border-b border-white/5 pb-3"><i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> Propulsion & Recovery</label>
+                    <div class="grid grid-cols-2 gap-4 bg-slate-900 p-3 rounded-lg border border-slate-800">
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase mb-1 tracking-widest font-bold">Motor Type</div>
+                            <select id="i-motor" class="modern-select w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white outline-none" onchange="updateAll()">
+                                <optgroup label="Micro (13mm)"><option value="1/4A3-3T">1/4A3-3T</option><option value="1/2A3-2T">1/2A3-2T</option></optgroup>
+                                <optgroup label="Low (18mm)"><option value="A8-3">A8-3</option><option value="B4-4">B4-4</option><option value="B6-4">B6-4</option><option value="C6-5" selected>C6-5</option></optgroup>
+                                <optgroup label="Mid (24mm)"><option value="C11-5">C11-5</option><option value="D12-5">D12-5</option><option value="E9-6">E9-6</option><option value="E12-6">E12-6</option><option value="E20-7">E20-7</option></optgroup>
+                                <optgroup label="High (29mm+)"><option value="F15-8">F15-8</option><option value="F50-6">F50-6</option><option value="G40-7">G40-7</option><option value="G80-7">G80-7</option><option value="H115-10">H115-10</option></optgroup>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase mb-1 tracking-widest font-bold">Cluster Count</div>
+                            <select id="i-cluster" class="modern-select w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white outline-none" onchange="updateAll()">
+                                <option value="1">1x Single</option><option value="2">2x Cluster</option><option value="3">3x Cluster</option><option value="4">4x Cluster</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-span-2 pt-3 border-t border-slate-800 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Dual Deployment System</span>
+                                <input type="checkbox" id="i-dualDeploy" class="w-3.5 h-3.5 accent-amber-500 rounded cursor-pointer" onchange="updateAll()">
+                            </div>
+                            
+                            <div id="single-deploy-panel" class="space-y-3">
+                                <div class="flex gap-3">
+                                    <div class="flex-1 flex flex-col gap-1.5">
+                                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">System</span>
+                                        <select id="i-recType" class="modern-select w-full bg-slate-900/50 border border-white/10 rounded-md p-2 text-xs text-white" onchange="updateAll()">
+                                            <option value="none">Ballistic</option><option value="parachute" selected>Parachute</option><option value="streamer">Streamer</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex-1 flex flex-col gap-1.5">
+                                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Trigger</span>
+                                        <select id="i-recEvent" class="modern-select w-full bg-slate-900/50 border border-white/10 rounded-md p-2 text-xs text-white" onchange="updateAll()">
+                                            <option value="delay">Motor Delay</option><option value="apogee" selected>At Apogee</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1.5 pt-1"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Main Diameter</span><span id="v-recDia" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-recDia" class="w-full" oninput="updateAll()"></div>
+                            </div>
+                            
+                            <div id="dual-deploy-panel" class="space-y-3 hidden pt-2 border-t border-white/5">
+                                <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Drogue Chute (Fires @ Apogee)</span><span id="v-drogueDia" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-drogueDia" class="w-full" oninput="updateAll()"></div>
+                                <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Main Deploy Altitude</span><span id="v-mainAlt" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-mainAlt" class="w-full" oninput="updateAll()"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="glass-panel p-4 space-y-4 pb-8">
+                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em] flex items-center gap-2 border-b border-white/5 pb-3"><i data-lucide="weight" class="w-3.5 h-3.5 text-blue-500"></i> Mass & Aero Physics</label>
+                    <div class="space-y-4">
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Base Drag (Cd)</span><span id="v-cd" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-cd" class="w-full" oninput="updateAll()"></div>
+                        
+                        <div class="recessed-panel p-3">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[9px] text-white uppercase tracking-widest font-bold">Manual Override</span>
+                                <input type="checkbox" id="i-massOver" class="w-3.5 h-3.5 accent-blue-500 rounded cursor-pointer" onchange="updateAll()">
+                            </div>
+                            <div id="mass-over-panel" class="space-y-3 opacity-30 pointer-events-none transition-opacity">
+                                <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Exact Total Mass</span><span id="v-manMass" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-manMass" class="w-full" oninput="updateAll()"></div>
+                                <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Exact COM (from nose)</span><span id="v-manCom" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-manCom" class="w-full" oninput="updateAll()"></div>
+                            </div>
+                            <div id="mass-auto-panel" class="space-y-3 mt-3 border-t border-white/5 pt-3">
+                                <div class="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">Simple Trim Payload</div>
+                                <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Mass</span><span id="v-payMass" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-payMass" class="w-full" oninput="updateAll()"></div>
+                                <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Position</span><span id="v-payPos" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-payPos" class="w-full" oninput="updateAll()"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="mt-auto pt-4 shrink-0 pb-4">
+                    <button onclick="resetDesign()" class="w-full bg-slate-900 hover:bg-slate-800 text-slate-400 font-bold py-3 rounded-lg text-[10px] uppercase tracking-widest transition-all border border-white/5 flex items-center justify-center gap-2 hover:text-white">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Design Specs
+                    </button>
                 </div>
-                <div class="col-span-2 flex flex-col gap-1.5">
-                    <select id="i-motor" class="modern-select w-full bg-slate-900/80 border border-blue-500/30 rounded-md p-2 text-xs text-white" onchange="updateMotorSpecs()">
-                        <option value="C6">Estes C6 (10 Ns)</option>
-                        <option value="F15">Estes F15 (50 Ns)</option>
-                        <option value="G80">AeroTech G80 (120 Ns)</option>
-                    </select>
+            </div>
+
+            <!-- 2. AI LAB PANEL -->
+            <div id="ai-panel" class="hidden space-y-4 flex flex-col min-h-full">
+                <div class="glass-panel border-indigo-500/30 bg-indigo-500/5 p-4 shrink-0">
+                    <h4 class="text-xs font-bold text-indigo-300 mb-1.5 flex items-center gap-2"><i data-lucide="brain-circuit" class="w-4 h-4"></i> Engineering Assistant</h4>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">Let generative AI solve aerodynamic constraints and optimize your geometry parameters automatically.</p>
                 </div>
-                <button onclick="launchRocket()" class="w-full mt-2 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 rounded-lg text-xs font-black uppercase tracking-[0.2em] text-white shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all active:scale-95">
-                    Ignite Engine
-                </button>
-            </section>
+                
+                <div class="grid grid-cols-1 gap-2.5 shrink-0">
+                    <button onclick="runAITask('opt_all')" class="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] flex justify-center items-center gap-2 border border-indigo-500/50"><i data-lucide="sparkles" class="w-4 h-4"></i> Optimize Overall Design</button>
+                    <button onclick="runAITask('opt_alt')" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold py-3.5 rounded-lg text-[10px] uppercase tracking-widest transition-all border border-white/5 flex justify-center items-center gap-2"><i data-lucide="arrow-up" class="w-4 h-4"></i> Maximize Altitude</button>
+                    <button onclick="runAITask('opt_stab')" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold py-3.5 rounded-lg text-[10px] uppercase tracking-widest transition-all border border-white/5 flex justify-center items-center gap-2"><i data-lucide="crosshair" class="w-4 h-4"></i> Optimize Stability</button>
+                    <button onclick="runAITask('min_drag')" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold py-3.5 rounded-lg text-[10px] uppercase tracking-widest transition-all border border-white/5 flex justify-center items-center gap-2"><i data-lucide="wind" class="w-4 h-4"></i> Minimize Drag</button>
+                </div>
+                
+                <div id="ai-output" class="hidden mt-2 flex-1 flex flex-col min-h-[300px]">
+                    <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 shrink-0 px-1">AI Diagnostic Report</div>
+                    
+                    <div class="recessed-panel p-4 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 text-[11px] text-slate-300 leading-relaxed">
+                        <div><strong class="text-indigo-300 text-xs">Analysis:</strong><br><span id="ai-report" class="mono text-[10px]"></span></div>
+                        <div class="border-t border-white/5 pt-2"><strong class="text-blue-300 text-xs">Reasoning:</strong><br><span id="ai-reasoning" class="mono text-[10px]"></span></div>
+                        <div class="border-t border-white/5 pt-2"><strong class="text-emerald-300 text-xs">Before vs After:</strong><br><span id="ai-compare" class="mono text-[10px] text-emerald-400/80"></span></div>
+                    </div>
+                    
+                    <button id="btn-apply-opt" onclick="applyOptimizations()" class="hidden mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-lg text-[10px] uppercase tracking-widest transition-all flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] shrink-0"><i data-lucide="check-circle" class="w-4 h-4"></i> Apply Enhancements</button>
+                </div>
+                <div class="mt-auto shrink-0 pt-6 pb-4">
+                    <button onclick="resetAI()" class="w-full bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-red-400 font-bold py-3 rounded-lg text-[10px] uppercase tracking-widest transition-all border border-white/5 flex items-center justify-center gap-2">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear Diagnostics
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. FLIGHT SIM PANEL -->
+            <div id="flight-panel" class="hidden space-y-5 flex flex-col min-h-full">
+                
+                <div class="glass-panel border-blue-500/30 bg-blue-500/5 p-4 shrink-0">
+                    <h4 class="text-xs font-bold text-blue-300 mb-1.5 flex items-center gap-2"><i data-lucide="orbit" class="w-4 h-4"></i> 6-DOF Aero Engine Ready</h4>
+                    <p class="text-[9px] text-slate-400 leading-relaxed mono">Dynamic Reynolds skin friction, transonic modeling, and Fin Flutter velocity engaged.</p>
+                </div>
+                
+                <section class="glass-panel p-4">
+                    <label class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.15em] flex items-center gap-2 border-b border-white/5 pb-3 mb-4"><i data-lucide="cloud-rain" class="w-3.5 h-3.5 text-blue-500"></i> Pad Environment</label>
+                    <div class="grid grid-cols-1 gap-5">
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Crosswind Speed</span><span id="v-wind" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-wind" class="w-full" oninput="updateAll()"></div>
+                        <div class="flex flex-col gap-1.5"><div class="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wider"><span>Launch Rail Length</span><span id="v-rail" class="text-cyan-400 mono text-[11px]"></span></div><input type="range" id="i-rail" class="w-full" oninput="updateAll()"></div>
+                    </div>
+                </section>
+                
+                <!-- Post-Flight Results -->
+                <div id="post-flight-results" class="hidden glass-panel p-5 mt-2 animate-in fade-in slide-in-from-bottom-4 border-indigo-500/30">
+                    <h4 id="mission-status-title" class="text-sm font-black uppercase tracking-[0.15em] flex items-center gap-2 mb-1 text-white"><i data-lucide="flag" class="w-4 h-4"></i> Mission Complete</h4>
+                    <p id="mission-fail-reason" class="text-[10px] font-bold text-red-400 hidden mb-4 bg-red-500/10 px-2 py-1 rounded border border-red-500/20"></p>
+                    
+                    <div class="space-y-3 mt-4">
+                        <!-- Performance -->
+                        <div class="recessed-panel p-3">
+                            <div class="text-[8px] text-blue-400 font-black uppercase tracking-[0.2em] mb-2">Primary Telemetry</div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="bg-white/[0.03] rounded p-2 text-center border border-white/5"><div class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">Apogee</div><div id="res-post-alt" class="font-bold text-white mono text-xs">0m</div></div>
+                                <div class="bg-white/[0.03] rounded p-2 text-center border border-white/5"><div class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">Max Vel</div><div id="res-post-vel" class="font-bold text-white mono text-xs">0m/s</div></div>
+                                <div class="bg-white/[0.03] rounded p-2 text-center border border-white/5"><div class="text-[8px] text-slate-500 uppercase font-bold tracking-wider mb-1">Max Mach</div><div id="res-post-mach" class="font-bold text-white mono text-xs">0</div></div>
+                            </div>
+                        </div>
+
+                        <!-- Stability & Safety -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="recessed-panel p-3">
+                                <div class="text-[8px] text-blue-400 font-black uppercase tracking-[0.2em] mb-2">Aero Integrity</div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="text-center"><div class="text-[8px] text-slate-500 uppercase font-bold mb-1">Max Q</div><div id="res-post-q" class="font-bold text-slate-300 mono text-[10px]">0 kPa</div></div>
+                                    <div class="text-center"><div class="text-[8px] text-slate-500 uppercase font-bold mb-1">Rail Vel</div><div id="res-post-rail" class="font-bold text-slate-300 mono text-[10px]">0m/s</div></div>
+                                </div>
+                            </div>
+                            <div class="recessed-panel p-3">
+                                <div class="text-[8px] text-blue-400 font-black uppercase tracking-[0.2em] mb-2">Recovery</div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="text-center"><div class="text-[8px] text-slate-500 uppercase font-bold mb-1">Desc Rate</div><div id="res-post-desc" class="font-bold text-slate-300 mono text-[10px]">0m/s</div></div>
+                                    <div class="text-center"><div class="text-[8px] text-slate-500 uppercase font-bold mb-1">Impact V.</div><div id="res-post-impact" class="font-bold text-slate-300 mono text-[10px]">0m/s</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GRAPH SWITCHER -->
+                    <div class="mt-4 border-t border-white/5 pt-4">
+                        <div class="text-[8px] text-blue-400 font-black uppercase tracking-[0.2em] mb-2">Telemetry Graph View</div>
+                        <div class="flex gap-1 p-1 bg-slate-950 rounded-lg border border-white/5">
+                            <button onclick="switchGraph('altitude')" id="btn-graph-alt" class="flex-1 text-[9px] py-1.5 rounded bg-blue-600/30 text-blue-400 font-bold uppercase transition-colors">Altitude</button>
+                            <button onclick="switchGraph('velocity')" id="btn-graph-vel" class="flex-1 text-[9px] py-1.5 rounded hover:bg-white/5 text-slate-500 font-bold uppercase transition-colors">Vertical Vel</button>
+                            <button onclick="switchGraph('acceleration')" id="btn-graph-acc" class="flex-1 text-[9px] py-1.5 rounded hover:bg-white/5 text-slate-500 font-bold uppercase transition-colors">Vert Accel</button>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 mt-5">
+                        <button onclick="runAITask('postflight')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-[10px] uppercase tracking-widest transition-all flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(79,70,229,0.3)]"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> AI Review</button>
+                        <button onclick="exportCSV()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold py-2.5 rounded-lg text-[10px] uppercase tracking-widest transition-all flex justify-center items-center gap-2 border border-white/5"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV Logs</button>
+                    </div>
+
+                    <div id="postflight-ai-output" class="hidden mt-3 flex flex-col gap-2">
+                        <div class="recessed-panel p-4 max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-3 text-[11px] text-slate-300 leading-relaxed">
+                            <div><strong class="text-indigo-300 text-xs">Mission Report:</strong><br><span id="postflight-ai-report" class="mono text-[10px]"></span></div>
+                            <div id="postflight-reasoning-container" class="border-t border-white/5 pt-2 hidden"><strong class="text-red-400 text-xs">Failure Diagnosis:</strong><br><span id="postflight-ai-reasoning" class="mono text-[10px]"></span></div>
+                        </div>
+                        <button id="btn-apply-postflight" onclick="applyOptimizations()" class="hidden w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg text-[10px] uppercase tracking-widest transition-all flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] shrink-0">
+                            <i data-lucide="wrench" class="w-4 h-4"></i> Apply Engineering Fixes
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-auto pt-6 shrink-0 pb-4 space-y-3">
+                    <button onclick="startFlight()" id="btn-launch" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl text-sm uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(220,38,38,0.4)] flex items-center justify-center gap-3 transition-transform hover:-translate-y-0.5 active:translate-y-0"><i data-lucide="power" class="w-5 h-5"></i> IGNITION</button>
+                    
+                    <div id="sim-controls" class="hidden flex gap-3">
+                        <button id="btn-pause" onclick="togglePause()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold py-3 rounded-xl text-[10px] uppercase tracking-widest transition-all border border-white/5 flex items-center justify-center gap-2"><i data-lucide="pause" id="icon-pause" class="w-3.5 h-3.5"></i> <span id="txt-pause">PAUSE</span></button>
+                        <button id="btn-fast-forward" onclick="toggleFastForward()" disabled class="flex-1 bg-slate-900 text-slate-600 font-bold py-3 rounded-xl text-[10px] uppercase tracking-widest transition-all border border-white/5 flex items-center justify-center gap-2 cursor-not-allowed"><i data-lucide="fast-forward" class="w-3.5 h-3.5"></i> <span id="ff-text">FAST DESCENT</span></button>
+                    </div>
+
+                    <button onclick="resetFlight()" class="w-full bg-transparent hover:bg-white/5 text-slate-400 hover:text-white font-bold py-3 rounded-xl text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Launch Pad</button>
+                </div>
+            </div>
         </div>
     </aside>
 
+    <!-- 3D VIEWPORT (Right) -->
     <main id="canvas-container">
-        <div class="absolute top-6 left-6 z-40 glass-panel p-4 shadow-xl flex items-center gap-6">
-            <div class="flex flex-col">
-                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Stability Margin</span>
-                <span id="hud-margin" class="text-2xl font-black mono text-emerald-400">1.50<span class="text-sm text-slate-500 ml-1">cal</span></span>
-            </div>
-            <div class="w-px h-8 bg-white/10"></div>
-            <div class="flex flex-col gap-1">
-                <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500"></div><span class="text-[10px] text-slate-300 mono">CG: <span id="hud-cg">0.0</span> cm</span></div>
-                <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500"></div><span class="text-[10px] text-slate-300 mono">CP: <span id="hud-cp">0.0</span> cm</span></div>
-            </div>
-        </div>
-
-        <div id="flight-hud" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 glass-panel p-4 shadow-2xl flex items-center gap-6 border-t border-orange-500/30 opacity-0 transition-opacity duration-500">
-            <div class="flex flex-col items-center mr-2 px-4 py-2 bg-slate-900/80 rounded-md border border-white/10">
-                <span id="tele-phase" class="text-xs font-black text-orange-500 tracking-[0.2em] uppercase">Pad</span>
-            </div>
-            <div class="w-px h-8 bg-white/10"></div>
-            
-            <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Time</span>
-                <span id="tele-time" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">s</span></span>
-            </div>
-            <div class="w-px h-8 bg-white/10"></div>
-            <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-cyan-400 uppercase tracking-wider">Altitude</span>
-                <span id="tele-alt" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">m</span></span>
-            </div>
-            <div class="w-px h-8 bg-white/10"></div>
-            <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">Velocity</span>
-                <span id="tele-vel" class="text-xl font-black mono text-white">0.0<span class="text-xs text-slate-500 ml-1">m/s</span></span>
-            </div>
-        </div>
-
         <canvas id="gl-canvas"></canvas>
+
+        <div id="ui-overlay">
+            <!-- Top Right Action Pill -->
+            <div class="absolute top-6 right-6 flex items-center bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-full p-1 shadow-2xl pointer-events-auto z-40">
+                <button onclick="toggleHUD()" class="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"><i data-lucide="layout-template" class="w-3.5 h-3.5"></i> HUD</button>
+                <div class="w-px h-4 bg-slate-700 mx-1"></div>
+                <input type="file" id="stl-upload" accept=".stl" class="hidden" onchange="importSTL(event)">
+                <button onclick="document.getElementById('stl-upload').click()" class="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"><i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i> Import</button>
+                
+                <!-- Export Dropdown -->
+                <div class="relative group flex items-center h-full" id="export-dropdown-container">
+                    <button onclick="toggleStlDropdown(event)" class="px-4 py-1.5 h-full text-[10px] font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 rounded-full text-white flex items-center gap-1.5 transition-colors shadow-lg">
+                        <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> Export 3D <i data-lucide="chevron-down" class="w-3 h-3 ml-1 opacity-70"></i>
+                    </button>
+                    <div id="stl-dropdown" class="absolute top-full right-0 mt-2 w-48 glass-hud rounded-xl hidden flex-col overflow-hidden z-50 py-1">
+                        <button onclick="exportRocketSTL('single')" class="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 flex items-center gap-2"><i data-lucide="box" class="w-3.5 h-3.5 text-blue-400"></i> Single Solid (.stl)</button>
+                        <button onclick="exportRocketSTL('multipart')" class="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i> Split Parts (.zip)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simulation Graph Overlay -->
+            <div id="graph-overlay" class="absolute inset-0 pointer-events-none hidden z-30">
+                <div id="lbl-graph-y" class="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 uppercase -rotate-90 font-bold tracking-[0.2em] z-40">Altitude (m)</div>
+                <div id="lbl-graph-x" class="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] text-slate-500 uppercase font-bold tracking-[0.2em] z-40">Mission Time (s)</div>
+                
+                <!-- The strictly bounded axis box -->
+                <div id="graph-axes-overlay" class="absolute left-[70px] bottom-[40px] top-0 right-0 border-l-2 border-b-2 border-slate-500 pointer-events-none z-20 hidden"></div>
+                <div id="axes-labels" class="absolute inset-0 pointer-events-none z-30"></div>
+
+                <div id="graph-y-ptr" class="absolute left-[70px] right-0 border-t border-blue-500 border-dashed z-30 hidden pointer-events-none transition-all duration-75">
+                    <div class="absolute -left-2 -translate-x-full -top-3 bg-slate-900/80 backdrop-blur border border-blue-500/50 text-blue-300 text-[10px] font-mono px-2 py-1 rounded shadow-lg flex items-center gap-1.5"><i data-lucide="arrow-right" class="w-3 h-3 text-blue-500"></i><span id="txt-curr-alt">0.0</span></div>
+                </div>
+                <div id="graph-x-ptr" class="absolute top-0 bottom-[40px] border-l border-slate-400 border-dashed z-30 hidden pointer-events-none transition-all duration-75">
+                    <div class="absolute bottom-0 translate-y-full -left-10 w-20 text-center bg-slate-900/80 backdrop-blur border border-slate-600/50 text-slate-300 text-[10px] font-mono px-2 py-1 rounded shadow-lg mt-1"><span id="txt-curr-time">0.0</span>s</div>
+                </div>
+            </div>
+
+            <!-- UNIVERSAL DRAGGABLE HUD -->
+            <div id="stability-info" class="hidden absolute glass-hud rounded-2xl min-w-[320px] pointer-events-auto select-none z-40" style="left: 32px; bottom: 32px;">
+                <div id="stability-handle" class="drag-handle h-6 flex justify-center items-center opacity-30 hover:opacity-100 transition-opacity w-full absolute top-0 left-0 rounded-t-2xl"><div class="w-10 h-1 bg-white/50 rounded-full"></div></div>
+                <div class="p-6 pt-7">
+                    <!-- Live Telemetry (Visible in Flight) -->
+                    <div id="hud-telemetry" class="hidden grid-cols-4 gap-3 mb-5 pb-5 border-b border-white/10 text-center">
+                        <div><div id="lbl-hud-alt" class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Alt</div><div id="hud-alt" class="text-sm font-black text-cyan-400 mono">0m</div></div>
+                        <div><div id="lbl-hud-vel" class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Vel</div><div id="hud-vel" class="text-sm font-black text-white mono">0m/s</div></div>
+                        <div><div id="lbl-hud-mach" class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Mach</div><div id="hud-mach" class="text-sm font-black text-amber-400 mono">0.0</div></div>
+                        <div><div id="lbl-hud-time" class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Time</div><div id="hud-time" class="text-sm font-black text-slate-400 mono">T+0s</div></div>
+                    </div>
+
+                    <!-- Stability Metrics -->
+                    <div class="grid grid-cols-2 gap-y-5 gap-x-4">
+                        <div><div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><i data-lucide="weight" class="w-3 h-3"></i> Mass <span id="dyn-mass-lbl" class="text-blue-400 hidden ml-1">(Burn)</span></div><div id="res-mass" class="text-xl font-black text-white mono">0g</div></div>
+                        <div><div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><i data-lucide="zap" class="w-3 h-3"></i> Pad TWR</div><div id="res-thrust" class="text-xl font-black text-white mono">0</div></div>
+                        <div><div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span> COM</div><div id="res-com" class="text-xl font-black text-slate-300 mono transition-colors">0cm</div></div>
+                        <div><div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> COP</div><div id="res-cop" class="text-xl font-black text-slate-300 mono">0cm</div></div>
+                        <div><div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><i data-lucide="crosshair" class="w-3 h-3"></i> Stability</div><div id="res-margin-hud" class="text-xl font-black text-white mono transition-colors">0 cal</div></div>
+                        <div><div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><i data-lucide="arrow-up" class="w-3 h-3"></i> Est. Apogee</div><div id="res-apogee-hud" class="text-xl font-black text-cyan-400 mono">0m</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-hint" class="absolute bottom-8 right-8 glass-hud px-4 py-2.5 rounded-full flex items-center gap-5 text-[9px] font-bold uppercase text-slate-400 tracking-widest pointer-events-auto shadow-2xl z-40">
+                <!-- Content dynamic -->
+            </div>
+        </div>
     </main>
 
+    <div id="toast" class="px-5 py-3 rounded-full flex items-center gap-3 pointer-events-none z-50"><i data-lucide="info" class="w-4 h-4 text-blue-400" id="toast-icon"></i><span id="toast-msg" class="text-[11px] font-bold uppercase tracking-wide text-white"></span></div>
+
     <script>
-        let design = { bodyLen: 40, bodyDia: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, wind: 5, chuteDia: 30, cBody: '#e2e8f0', cNose: '#ef4444', cFins: '#ef4444' };
-        let mathData = { COM: 0, COP: 0, Margin: 0, dryMass: 0.150, momentOfInertia: 0.01 }; 
+        const apiKey = ""; // The execution environment provides the key at runtime
+        let currentTab = 'design';
+        let isCustomModel = false;
         
-        const motors = {
-            "C6": { thrust: 6.0, burnTime: 1.6, propMass: 0.012, totalMass: 0.024 },
-            "F15": { thrust: 14.6, burnTime: 3.4, propMass: 0.030, totalMass: 0.104 },
-            "G80": { thrust: 65.0, burnTime: 1.8, propMass: 0.065, totalMass: 0.130 }
+        const motors = { 
+            '1/4A3-3T': { thrust: 0.3, burn: 0.8, mass: 6, propMass: 1, delay: 3 },
+            '1/2A3-2T': { thrust: 0.6, burn: 0.8, mass: 6, propMass: 2, delay: 2 },
+            'A8-3': { thrust: 2.5, burn: 0.5, mass: 16, propMass: 3, delay: 3 }, 
+            'B4-4': { thrust: 4.0, burn: 1.2, mass: 21, propMass: 8, delay: 4 },
+            'B6-4': { thrust: 6.0, burn: 0.8, mass: 20, propMass: 6, delay: 4 }, 
+            'C6-5': { thrust: 6.0, burn: 1.6, mass: 26, propMass: 12.5, delay: 5 }, 
+            'C11-5': { thrust: 11.0, burn: 0.8, mass: 32, propMass: 12, delay: 5 },
+            'D12-5': { thrust: 12.0, burn: 1.6, mass: 42, propMass: 21, delay: 5 }, 
+            'E9-6': { thrust: 9.0, burn: 2.8, mass: 58, propMass: 35, delay: 6 }, 
+            'E12-6': { thrust: 12.0, burn: 2.1, mass: 60, propMass: 30, delay: 6 },
+            'E20-7': { thrust: 20.0, burn: 1.8, mass: 65, propMass: 35, delay: 7 },
+            'F15-8': { thrust: 15.0, burn: 3.4, mass: 104, propMass: 50, delay: 8 },
+            'F50-6': { thrust: 50.0, burn: 1.6, mass: 70, propMass: 38, delay: 6 },
+            'G40-7': { thrust: 40.0, burn: 3.0, mass: 130, propMass: 70, delay: 7 },
+            'G80-7': { thrust: 80.0, burn: 1.5, mass: 135, propMass: 65, delay: 7 },
+            'H115-10': { thrust: 115.0, burn: 2.0, mass: 320, propMass: 150, delay: 10 }
         };
-        let activeMotor = motors["C6"];
-        
-        let scene, camera, renderer, rocketGroup, controls, trailGeom, trailLine, parachuteMesh;
-        let comMarker, copMarker;
-        
-        let isSimulating = false;
-        let flightPhase = "PAD"; 
-        let simTime = 0, posX = 0, posY = 0, velX = 0, velY = 0;
-        let pitchAngle = 0, pitchRate = 0; 
-        let lastFrameTime = 0;
-        let trailPoints = [];
 
-        function showToast(message, type = 'error') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            const bgColor = type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-200' : 'bg-blue-500/20 border-blue-500/50 text-blue-200';
-            toast.className = `px-4 py-2 rounded-lg border backdrop-blur-md text-xs font-bold uppercase tracking-wider shadow-lg transition-all duration-300 transform translate-y-[-20px] opacity-0 ${bgColor}`;
-            toast.innerText = message;
-            container.appendChild(toast);
-            requestAnimationFrame(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; });
-            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-20px)'; setTimeout(() => toast.remove(), 300); }, 3000);
+        const finMaterials = {
+            'balsa': { G: 140000000, density: 160 }, 
+            'plywood': { G: 450000000, density: 680 },
+            'g10': { G: 4000000000, density: 1850 },
+            'carbon': { G: 15000000000, density: 1550 }
+        };
+        
+        let design = { bodyLen: 40, bodyDia: 24.8, wall: 0.3, boatLen: 0, boatAft: 24.8, noseType: 'ogive', noseLen: 10, finNum: 3, finThick: 3, finMat: 'plywood', finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, finOff: 0, payMass: 5, payPos: 10, cd: 0.75, wind: 0, railLen: 100, motor: 'C6-5', cluster: 1, dualDeploy: false, recType: 'parachute', recEvent: 'apogee', recDia: 30, drogueDia: 10, mainAlt: 100, massOver: false, manMass: 50, manCom: 25, cBody: '#2B3142', cNose: '#EF4444', cFins: '#EF4444', matMaxQ: 50000 };
+        let results = { COP: 0, COM: 0, margin: 0, mass: 0, origMass: 0, origCOM: 0, padTwr: 0, C_Na_total: 4.0, Vf: 500 };
+        let livePredictions = { apogee: 0, maxVel: 0, maxQ: 0 };
+        let simState = { running: false, flightEnded: false, time: 0, altitude: 0, velocity: 0, velX: 0, velY: 0, posX: 0, pitch: 0, pitchVel: 0, driftX: 0, xScale: 20, yScale: 10, deployed: false, drogueDeployed: false, mainDeployed: false, railCleared: false, railVel: 0, dataLog: [], status: 'nominal', failReason: '', fastForward: false, ffShown: false, paused: false };
+        let flightProfile = { maxAlt: 0, maxTime: 0, maxVel: 0, maxQ: 0, maxMach: 0, maxDrag: 0, drift: 0, descRate: 0, impactV: 0 };
+        let pendingOptimizations = null;
+        
+        // --- Smart Input System ---
+        const paramConfig = {
+            'bodyLen': { id: 'i-bodyLen', valId: 'v-bodyLen', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 10, max: 200 },
+            'bodyDia': { id: 'i-bodyDia', valId: 'v-bodyDia', baseUnit: 'mm', types: ['mm', 'cm', 'in'], min: 10, max: 150 },
+            'wall':    { id: 'i-wall', valId: 'v-wall', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 0.1, max: 2 },
+            'boatLen': { id: 'i-boatLen', valId: 'v-boatLen', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 0, max: 20 },
+            'boatAft': { id: 'i-boatAft', valId: 'v-boatAft', baseUnit: 'mm', types: ['mm', 'cm', 'in'], min: 10, max: 150 },
+            'noseLen': { id: 'i-noseLen', valId: 'v-noseLen', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 2, max: 50 },
+            'finNum':  { id: 'i-finNum', valId: 'v-finNum', baseUnit: '', types: [''], min: 3, max: 6 },
+            'finThick':{ id: 'i-finThick', valId: 'v-finThick', baseUnit: 'mm', types: ['mm', 'in'], min: 0.5, max: 10 },
+            'finRoot': { id: 'i-finRoot', valId: 'v-finRoot', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 2, max: 30 },
+            'finTip':  { id: 'i-finTip', valId: 'v-finTip', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 0, max: 20 },
+            'finSpan': { id: 'i-finSpan', valId: 'v-finSpan', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 1, max: 20 },
+            'finSweep':{ id: 'i-finSweep', valId: 'v-finSweep', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 0, max: 15 },
+            'finOff':  { id: 'i-finOff', valId: 'v-finOff', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 0, max: 50 },
+            'cd':      { id: 'i-cd', valId: 'v-cd', baseUnit: '', types: [''], min: 0.1, max: 1.5 },
+            'payMass': { id: 'i-payMass', valId: 'v-payMass', baseUnit: 'g', types: ['g', 'oz', 'kg'], min: 0, max: 500 },
+            'payPos':  { id: 'i-payPos', valId: 'v-payPos', baseUnit: 'cm', types: ['cm', 'mm', 'in'], min: 0, max: 100 },
+            'recDia':  { id: 'i-recDia', valId: 'v-recDia', baseUnit: 'cm', types: ['cm', 'in'], min: 10, max: 150 },
+            'drogueDia': { id: 'i-drogueDia', valId: 'v-drogueDia', baseUnit: 'cm', types: ['cm', 'in'], min: 5, max: 50 },
+            'mainAlt': { id: 'i-mainAlt', valId: 'v-mainAlt', baseUnit: 'm', types: ['m', 'ft'], min: 30, max: 500 },
+            'wind':    { id: 'i-wind', valId: 'v-wind', baseUnit: 'm/s', types: ['km/h', 'm/s', 'mph', 'ft/s'], min: 0, max: 15 },
+            'railLen': { id: 'i-rail', valId: 'v-rail', baseUnit: 'cm', types: ['cm', 'in', 'm'], min: 50, max: 300 },
+            'manMass': { id: 'i-manMass', valId: 'v-manMass', baseUnit: 'g', types: ['g', 'oz', 'kg'], min: 10, max: 2000 },
+            'manCom':  { id: 'i-manCom', valId: 'v-manCom', baseUnit: 'cm', types: ['cm', 'in', 'mm'], min: 0, max: 200 }
+        };
+
+        const conversionRates = {
+            'cm_mm': 10, 'cm_in': 1/2.54, 'cm_m': 0.01, 'mm_cm': 0.1, 'mm_in': 1/25.4, 'mm_m': 0.001, 'in_cm': 2.54, 'in_mm': 25.4, 'in_m': 0.0254,
+            'm_cm': 100, 'm_mm': 1000, 'm_in': 39.3701, 'g_oz': 1/28.3495, 'g_kg': 0.001, 'oz_g': 28.3495, 'oz_kg': 28.3495/1000, 'kg_g': 1000, 'kg_oz': 35.274,
+            'm/s_ft/s': 3.28084, 'm/s_mph': 2.23694, 'm/s_km/h': 3.6, 'ft/s_m/s': 1/3.28084, 'ft/s_mph': 0.681818, 'mph_m/s': 1/2.23694, 'mph_ft/s': 1.46667, 'km/h_m/s': 1/3.6
+        };
+
+        const convertTo = (val, from, to) => { if (from === to || from === '' || to === '') return val; return val * (conversionRates[`${from}_${to}`] || 1); };
+
+        function showEl(id) { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); }
+        function hideEl(id) { const el = document.getElementById(id); if(el) el.classList.add('hidden'); }
+
+        let userUnits = {};
+        function initUIParams() { Object.keys(paramConfig).forEach(k => { userUnits[k] = k === 'wind' ? 'km/h' : paramConfig[k].baseUnit; updateSliderBounds(k); }); }
+
+        function cycleUnit(key, e) {
+            e.stopPropagation(); const conf = paramConfig[key]; const currentIdx = conf.types.indexOf(userUnits[key]);
+            userUnits[key] = conf.types[(currentIdx + 1) % conf.types.length];
+            updateSliderBounds(key); updateDisplayValues();
         }
 
-        function validateAndSync(key, min, max) {
-            if (isSimulating) return;
-            let inputEl = document.getElementById(`v-${key}`);
-            let val = parseFloat(inputEl.value);
-            if (isNaN(val)) { showToast(`Invalid input`, 'error'); val = design[key]; } 
-            else if (val < min) { showToast(`Min is ${min}`, 'error'); val = min; } 
-            else if (val > max) { showToast(`Max is ${max}`, 'error'); val = max; }
-            inputEl.value = val; document.getElementById(`i-${key}`).value = val; design[key] = val;
-            runMathEngine(); rebuildRocketMesh();
+        function startEditing(key, valSpan, e) {
+            e.stopPropagation();
+            const conf = paramConfig[key]; const activeUnit = userUnits[key]; const currentDispVal = convertTo(design[key], conf.baseUnit, activeUnit);
+            
+            const inputEl = document.createElement('input'); inputEl.type = 'number'; inputEl.value = currentDispVal.toFixed(2);
+            inputEl.className = 'w-14 bg-slate-950/80 border border-blue-500/50 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 text-cyan-300 font-mono text-[11px] rounded px-1 outline-none text-right shadow-inner -my-1 pointer-events-auto';
+            
+            valSpan.innerHTML = ''; valSpan.appendChild(inputEl); inputEl.focus(); inputEl.select();
+
+            let isFinished = false;
+            const finish = () => {
+                if (isFinished) return; isFinished = true;
+                let parsed = parseFloat(inputEl.value);
+                if (!isNaN(parsed)) {
+                    const baseParsed = convertTo(parsed, activeUnit, conf.baseUnit);
+                    design[key] = baseParsed;
+                    if (baseParsed > conf.max) conf.max = Math.ceil(baseParsed * 1.2);
+                    if (baseParsed < conf.min) design[key] = conf.min; 
+                    updateSliderBounds(key); 
+                }
+                inputEl.remove(); updateAll();
+            };
+            inputEl.addEventListener('blur', finish); inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(); });
         }
 
-        function syncFromSlider(key) {
-            if (isSimulating) return;
-            const val = parseFloat(document.getElementById(`i-${key}`).value);
-            document.getElementById(`v-${key}`).value = val; design[key] = val;
-            runMathEngine(); rebuildRocketMesh();
+        function updateSliderBounds(key) {
+            const conf = paramConfig[key], slider = document.getElementById(conf.id); if (!slider) return;
+            const activeUnit = userUnits[key], currentBaseVal = design[key];
+            let activeMax = conf.max; if (currentBaseVal > activeMax) activeMax = currentBaseVal * 1.2;
+            slider.min = convertTo(conf.min, conf.baseUnit, activeUnit); slider.max = convertTo(activeMax, conf.baseUnit, activeUnit); slider.value = convertTo(currentBaseVal, conf.baseUnit, activeUnit);
+            if(activeUnit === 'in' || activeUnit === 'oz' || activeUnit === 'kg' || activeUnit === 'm' || key === 'cd') slider.step = 0.01;
+            else if(activeUnit === 'mm' || activeUnit === 'g' || key === 'finNum') slider.step = 1; else slider.step = 0.1;
+        }
+
+        function updateDisplayValues() {
+            Object.keys(paramConfig).forEach(key => {
+                const conf = paramConfig[key], span = document.getElementById(conf.valId); if(!span || span.querySelector('input')) return;
+                const activeUnit = userUnits[key], dispVal = convertTo(design[key], conf.baseUnit, activeUnit);
+                let formatted = (dispVal % 1 === 0 && dispVal < 100) ? dispVal : parseFloat(dispVal.toFixed(2));
+                
+                if (conf.types[0] === '') span.innerHTML = `<span class="val-edit hover:text-cyan-300 transition-colors border-b border-dashed border-slate-600 hover:border-cyan-400 cursor-text pointer-events-auto" title="Click to edit value">${formatted}</span>`;
+                else span.innerHTML = `<span class="val-edit hover:text-cyan-300 transition-colors border-b border-dashed border-slate-600 hover:border-cyan-400 cursor-text pointer-events-auto" title="Click to edit value">${formatted}</span><span class="unit-toggle ml-1 text-slate-500 hover:text-white transition-colors cursor-pointer pointer-events-auto" title="Click to change unit" onclick="cycleUnit('${key}', event)">${activeUnit}</span>`;
+                const valSpan = span.querySelector('.val-edit'); valSpan.onclick = (e) => startEditing(key, valSpan, e);
+            });
+        }
+
+        let graphMaxAlt = 50, graphMaxTime = 3;
+
+        let scene, camera, renderer, rocketGroup, rocket2D, pad, grid, chuteMesh, controls;
+        let comMarker, copMarker, trailLine, graphAxesLine, graphMinorAxesLine, explodeParticles = [];
+        let particles = [], trailPoints = [];
+        let yTickEls = [], xTickEls = [];
+        let hudVisible = false;
+        let currentGraphMode = 'altitude';
+
+        function toggleStlDropdown(e) {
+            e.stopPropagation();
+            const d = document.getElementById('stl-dropdown');
+            if (d) { d.classList.toggle('hidden'); d.classList.toggle('flex'); }
+        }
+
+        document.addEventListener('click', (e) => {
+            const d = document.getElementById('stl-dropdown');
+            if (d && !d.classList.contains('hidden') && !e.target.closest('#export-dropdown-container')) {
+                d.classList.add('hidden'); d.classList.remove('flex');
+            }
+        });
+
+        function toggleHUD() {
+            hudVisible = !hudVisible;
+            if (hudVisible) showEl('stability-info');
+            else hideEl('stability-info');
+        }
+
+        function togglePause() {
+            if (!simState.running) return;
+            simState.paused = !simState.paused;
+            const btn = document.getElementById('btn-pause');
+            const icon = document.getElementById('icon-pause');
+            if (simState.paused) {
+                btn.classList.add('bg-blue-600/90', 'text-white', 'border-blue-500/50', 'shadow-[0_0_15px_rgba(59,130,246,0.3)]');
+                btn.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'text-slate-400', 'hover:text-white', 'border-white/5');
+                icon.setAttribute('data-lucide', 'play');
+                setText('txt-pause', 'RESUME');
+            } else {
+                btn.classList.remove('bg-blue-600/90', 'text-white', 'border-blue-500/50', 'shadow-[0_0_15px_rgba(59,130,246,0.3)]');
+                btn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-400', 'hover:text-white', 'border-white/5');
+                icon.setAttribute('data-lucide', 'pause');
+                setText('txt-pause', 'PAUSE');
+            }
+            lucide.createIcons();
+        }
+
+        function toggleFastForward() {
+            if (!simState.running || !simState.deployed) return;
+            simState.fastForward = !simState.fastForward;
+            const btn = document.getElementById('btn-fast-forward');
+            if (simState.fastForward) {
+                btn.classList.add('bg-amber-600', 'text-white', 'border-amber-500/50', 'shadow-[0_0_15px_rgba(217,119,6,0.3)]');
+                btn.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'text-slate-400', 'hover:text-white', 'border-white/5');
+                setText('ff-text', '10X SPEED');
+            } else {
+                btn.classList.remove('bg-amber-600', 'text-white', 'border-amber-500/50', 'shadow-[0_0_15px_rgba(217,119,6,0.3)]');
+                btn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-400', 'hover:text-white', 'border-white/5');
+                setText('ff-text', 'FAST DESCENT');
+            }
+        }
+
+        function showToast(msg, type = 'info') { const t = document.getElementById('toast'); document.getElementById('toast-msg').innerText = msg; const i = document.getElementById('toast-icon'); if(type === 'success') { i.className = 'w-4 h-4 text-emerald-400'; i.setAttribute('data-lucide', 'check-circle'); } else if (type === 'error') { i.className = 'w-4 h-4 text-red-400'; i.setAttribute('data-lucide', 'alert-triangle'); } else { i.className = 'w-4 h-4 text-blue-400'; i.setAttribute('data-lucide', 'info'); } lucide.createIcons(); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3500); }
+        
+        function setText(id, text) { const el = document.getElementById(id); if (el) el.innerText = text; }
+
+        function initDraggable() {
+            const win = document.getElementById('stability-info'); const handle = document.getElementById('stability-handle');
+            if (!win || !handle) return;
+            let isDragging = false, offset = { x: 0, y: 0 };
+            handle.addEventListener('mousedown', (e) => { isDragging = true; win.classList.add('dragging'); const rect = win.getBoundingClientRect(); offset.x = e.clientX - rect.left; offset.y = e.clientY - rect.top; });
+            document.addEventListener('mousemove', (e) => { if (!isDragging) return; const container = document.getElementById('canvas-container').getBoundingClientRect(); let x = e.clientX - offset.x; let y = e.clientY - offset.y; const snap = 24, rect = win.getBoundingClientRect(); if (x < container.left + snap) x = container.left + snap; if (x + rect.width > container.right - snap) x = container.right - rect.width - snap; if (y < container.top + snap) y = container.top + snap; if (y + rect.height > container.bottom - snap) y = container.bottom - rect.height - snap; win.style.left = `${x - container.left}px`; win.style.top = `${y - container.top}px`; win.style.bottom = 'auto'; });
+            document.addEventListener('mouseup', () => { isDragging = false; win.classList.remove('dragging'); });
+        }
+
+        function initGraphLabels() {
+            const cont = document.getElementById('axes-labels');
+            if(!cont) return;
+            for(let i=0; i<30; i++) {
+                let elY = document.createElement('div');
+                // Aligned absolutely to the left edge of the gutter
+                elY.className = 'absolute text-[10px] text-slate-400 font-mono text-right w-[60px] pointer-events-none transition-all duration-75 whitespace-nowrap';
+                elY.style.left = '0px'; 
+                elY.style.transform = 'translateY(-50%)'; 
+                cont.appendChild(elY);
+                yTickEls.push(elY);
+                
+                let elX = document.createElement('div');
+                // Tucked tightly into the bottom gutter
+                elX.className = 'absolute text-[10px] text-slate-400 font-mono text-center pointer-events-none transition-all duration-75 whitespace-nowrap';
+                elX.style.bottom = '12px';
+                elX.style.transform = 'translateX(-50%)';
+                cont.appendChild(elX);
+                xTickEls.push(elX);
+            }
+        }
+
+        function getNiceStep(range, targetTicks) {
+            if (range <= 0) return 1;
+            const roughStep = range / targetTicks;
+            const mag = Math.pow(10, Math.floor(Math.log10(roughStep)));
+            const relStep = roughStep / mag;
+            if (relStep <= 1.2) return 1 * mag;
+            if (relStep <= 2.5) return 2 * mag;
+            if (relStep <= 6.0) return 5 * mag;
+            return 10 * mag;
+        }
+
+        function rebuildGraph() {
+            if (!simState.running && !simState.flightEnded) return;
+            const container = document.getElementById('canvas-container');
+            if (!container) return;
+
+            let maxV = graphMaxAlt;
+            let minV = 0;
+            if (simState.flightEnded) {
+                maxV = 0.1; minV = 0;
+                simState.dataLog.forEach(d => {
+                    let val = d.a;
+                    if(currentGraphMode === 'velocity') val = d.v;
+                    if(currentGraphMode === 'acceleration') val = d.acc;
+                    if (val > maxV) maxV = val;
+                    if (val < minV) minV = val;
+                });
+                const rangeV = maxV - minV;
+                maxV += rangeV * 0.05;
+                if(minV < 0) minV -= rangeV * 0.05;
+            }
+            
+            // Lock scale to actual viewport aspect ratio to prevent squashing
+            const aspect = container.clientWidth / container.clientHeight;
+            const baseW = 1000 * aspect;
+            const baseH = 1000;
+            
+            simState.xScale = baseW / graphMaxTime;
+            const range = Math.max(0.1, maxV - minV);
+            simState.yScale = baseH / range;
+            
+            const W = graphMaxTime * simState.xScale;
+            const H_pos = maxV * simState.yScale;
+            const H_neg = minV * simState.yScale;
+
+            trailPoints = [];
+            simState.dataLog.forEach(d => {
+                let val = d.a;
+                if(currentGraphMode === 'velocity') val = d.v;
+                if(currentGraphMode === 'acceleration') val = d.acc;
+                if(d.t % 0.1 < 0.02 || simState.flightEnded) {
+                    trailPoints.push(d.t * simState.xScale, val * simState.yScale, 0);
+                }
+            });
+            if(trailLine) {
+                trailLine.geometry.dispose();
+                trailLine.geometry = new THREE.BufferGeometry();
+                trailLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(trailPoints, 3));
+                
+                if (currentGraphMode === 'altitude') trailLine.material.color.setHex(0x0ea5e9);
+                else if (currentGraphMode === 'velocity') trailLine.material.color.setHex(0x10b981);
+                else if (currentGraphMode === 'acceleration') trailLine.material.color.setHex(0xf59e0b);
+            }
+
+            if (rocket2D && rocketGroup) {
+                let currentVal = simState.altitude;
+                if(currentGraphMode === 'velocity') currentVal = simState.velY;
+                if(currentGraphMode === 'acceleration') currentVal = (simState.dataLog.length > 0) ? simState.dataLog[simState.dataLog.length-1].acc : 0;
+
+                rocket2D.position.set(simState.time * simState.xScale, currentVal * simState.yScale, 0);
+                const rScale = Math.max(1, camera.position.z / 60);
+                rocket2D.scale.set(rScale, rScale, 1);
+                
+                if (currentGraphMode === 'altitude') rocket2D.material.color.setHex(0x0ea5e9);
+                else if (currentGraphMode === 'velocity') rocket2D.material.color.setHex(0x10b981);
+                else if (currentGraphMode === 'acceleration') rocket2D.material.color.setHex(0xf59e0b);
+            }
+
+            // Calculate visible screen bounds to extend lines infinitely
+            const z = camera.position.z;
+            const fov = THREE.MathUtils.degToRad(camera.fov);
+            const h = 2 * z * Math.tan(fov / 2);
+            const w = h * aspect;
+            
+            const camX = camera.position.x;
+            const camY = camera.position.y;
+            const visMinX = (camX - w/2) / simState.xScale;
+            const visMaxX = (camX + w/2) / simState.xScale;
+            const visMinY = (camY - h/2) / simState.yScale;
+            const visMaxY = (camY + h/2) / simState.yScale;
+
+            const stepX = getNiceStep(visMaxX - visMinX, 10);
+            const stepY = getNiceStep(visMaxY - visMinY, 8);
+            const minorStepX = stepX / 5;
+            const minorStepY = stepY / 5;
+
+            const ptsMajor = [];
+            const ptsMinor = [];
+            
+            // Massive grid extensions so lines never end
+            const extX = camX + w * 2;
+            const minExtX = camX - w * 2;
+            const extY = camY + h * 2;
+            const minExtY = camY - h * 2;
+            
+            const base_y = Math.min(0, minV) * simState.yScale;
+            
+            // Draw pure axes
+            ptsMajor.push(new THREE.Vector3(0, minExtY, 0), new THREE.Vector3(0, extY, 0));
+            ptsMajor.push(new THREE.Vector3(minExtX, base_y, 0), new THREE.Vector3(extX, base_y, 0));
+
+            yTickEls.forEach(el => el.style.display = 'none');
+            xTickEls.forEach(el => el.style.display = 'none');
+
+            let yLabelIdx = 0;
+            let startY = Math.floor(visMinY / minorStepY) * minorStepY;
+            
+            for(let y = startY; y <= visMaxY; y += minorStepY) {
+                let isMajor = Math.abs(y % stepY) < minorStepY/2;
+                let wY = y * simState.yScale;
+                
+                if(isMajor) {
+                    ptsMajor.push(new THREE.Vector3(minExtX, wY, 0), new THREE.Vector3(extX, wY, 0));
+                    if (yLabelIdx < yTickEls.length) {
+                        let v3 = new THREE.Vector3(0, wY, 0).project(camera);
+                        let screenY = (v3.y * -0.5 + 0.5) * container.clientHeight;
+                        
+                        // Restrict label to visible area
+                        if (screenY < container.clientHeight - 40 && screenY > 0) {
+                            let el = yTickEls[yLabelIdx++];
+                            el.style.display = 'block';
+                            el.style.top = `${screenY}px`;
+                            let label = parseFloat(y.toPrecision(4));
+                            if(currentGraphMode === 'velocity') label += 'm/s'; else if (currentGraphMode==='acceleration') label += 'm/s²'; else label += 'm';
+                            el.innerText = label;
+                        }
+                    }
+                } else {
+                    ptsMinor.push(new THREE.Vector3(minExtX, wY, 0), new THREE.Vector3(extX, wY, 0));
+                }
+            }
+            
+            let xLabelIdx = 0;
+            let startX = Math.floor(visMinX / minorStepX) * minorStepX;
+            
+            for(let x = startX; x <= visMaxX; x += minorStepX) {
+                let isMajor = Math.abs(x % stepX) < minorStepX/2;
+                let wX = x * simState.xScale;
+                
+                if(isMajor) {
+                    ptsMajor.push(new THREE.Vector3(wX, minExtY, 0), new THREE.Vector3(wX, extY, 0));
+                    if (xLabelIdx < xTickEls.length) {
+                        let v3 = new THREE.Vector3(wX, 0, 0).project(camera);
+                        let screenX = (v3.x * 0.5 + 0.5) * container.clientWidth;
+                        
+                        if (screenX > 70 && screenX < container.clientWidth) {
+                            let el = xTickEls[xLabelIdx++];
+                            el.style.display = 'block';
+                            el.style.left = `${screenX}px`;
+                            el.innerText = parseFloat(x.toPrecision(4)) + 's';
+                        }
+                    }
+                } else {
+                    ptsMinor.push(new THREE.Vector3(wX, minExtY, 0), new THREE.Vector3(wX, extY, 0));
+                }
+            }
+
+            if (graphAxesLine) {
+                graphAxesLine.geometry.dispose(); 
+                graphAxesLine.geometry = new THREE.BufferGeometry().setFromPoints(ptsMajor);
+            }
+            if (graphMinorAxesLine) {
+                graphMinorAxesLine.geometry.dispose();
+                graphMinorAxesLine.geometry = new THREE.BufferGeometry().setFromPoints(ptsMinor);
+            }
         }
 
         function initThree() {
-            const container = document.getElementById('canvas-container'), canvas = document.getElementById('gl-canvas');
-            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            
-            scene = new THREE.Scene(); 
-            scene.background = new THREE.Color(0x020617);
-            
-            scene.fog = new THREE.FogExp2(0x020617, 0.005);
+            try {
+                const container = document.getElementById('canvas-container'), canvas = document.getElementById('gl-canvas');
+                renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
+                renderer.setSize(container.clientWidth, container.clientHeight); renderer.setPixelRatio(window.devicePixelRatio);
+                scene = new THREE.Scene(); scene.background = new THREE.Color(0x020617);
+                camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 20000);
+                scene.add(new THREE.AmbientLight(0xffffff, 0.6)); const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(20, 100, 20); scene.add(dirLight);
+                
+                grid = new THREE.GridHelper(5000, 500, 0x1e293b, 0x0f172a); scene.add(grid);
+                pad = new THREE.Mesh(new THREE.CylinderGeometry(15, 20, 2, 32), new THREE.MeshStandardMaterial({color: 0x334155, roughness: 0.9})); pad.position.y = -1; scene.add(pad);
+                
+                controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 + 0.1;
+                
+                trailLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x0ea5e9, transparent: true, opacity: 0.8, linewidth: 2 })); scene.add(trailLine);
+                
+                // Professional Industry Grid Look (Distinct Major/Minor)
+                graphAxesLine = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.5 })); scene.add(graphAxesLine); graphAxesLine.visible = false;
+                graphMinorAxesLine = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.3 })); scene.add(graphMinorAxesLine); graphMinorAxesLine.visible = false;
 
-            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 20000);
-            
-            scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); 
-            dirLight.position.set(50, 100, 50); 
-            scene.add(dirLight);
-            
-            const ground = new THREE.Mesh(
-                new THREE.PlaneGeometry(2000, 2000), 
-                new THREE.MeshStandardMaterial({color: 0x0f172a, roughness: 0.8, metalness: 0.2})
-            );
-            ground.rotation.x = -Math.PI / 2;
-            scene.add(ground);
+                rocketGroup = new THREE.Group(); scene.add(rocketGroup);
+                
+                // Replaced rocket polygon with professional diamond chart-marker
+                const shape = new THREE.Shape(); shape.moveTo(0, 2); shape.lineTo(2, 0); shape.lineTo(0, -2); shape.lineTo(-2, 0); shape.lineTo(0, 2);
+                rocket2D = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({color: 0x22d3ee})); scene.add(rocket2D); rocket2D.visible = false;
 
-            const pad = new THREE.Mesh(
-                new THREE.CylinderGeometry(5, 5.5, 0.5, 32),
-                new THREE.MeshStandardMaterial({color: 0x334155, roughness: 0.3, metalness: 0.8})
-            );
-            pad.position.y = 0.25;
-            scene.add(pad);
+                chuteMesh = new THREE.Mesh(new THREE.SphereGeometry(15, 16, 16, 0, Math.PI*2, 0, Math.PI/2), new THREE.MeshBasicMaterial({color: 0xffffff, wireframe: true, transparent: true, opacity: 0.5}));
+                chuteMesh.position.y = 20; chuteMesh.visible = false; rocketGroup.add(chuteMesh);
 
-            const gridHelper = new THREE.GridHelper(500, 100, 0x1e293b, 0x0f172a);
-            gridHelper.position.y = 0.01;
-            scene.add(gridHelper);
-            
-            controls = new THREE.OrbitControls(camera, renderer.domElement); 
-            controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 - 0.05; 
-            
-            rocketGroup = new THREE.Group(); scene.add(rocketGroup);
-            
-            const markerGeo = new THREE.SphereGeometry(1, 16, 16);
-            comMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0x3b82f6})); scene.add(comMarker);
-            copMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0xef4444})); scene.add(copMarker);
+                window.addEventListener('resize', onWindowResize);
+                updateAll(); resetCameraView(); initDraggable(); initGraphLabels(); animate();
+            } catch (e) { 
+                console.error("Engine Initialization Error:", e);
+                document.getElementById('canvas-container').innerHTML = `<div class="p-8 text-red-400 font-mono text-sm">Initialization Error: ${e.message}<br><br>Please check console.</div>`; 
+            }
+        }
 
-            trailGeom = new THREE.BufferGeometry();
-            trailLine = new THREE.Line(trailGeom, new THREE.LineBasicMaterial({color: 0x0ea5e9, opacity: 0.5, transparent: true}));
-            scene.add(trailLine);
+        function resetCameraView() { 
+            if(!controls || !camera) return; 
+            controls.enabled = true; controls.enableRotate = true; controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+            const dist = Math.max(80, design.bodyLen * 1.5); camera.position.set(dist * 0.7, design.bodyLen * 0.5, dist); controls.target.set(0, design.bodyLen * 0.5, 0); controls.update(); 
+            const viewHint = document.getElementById('view-hint');
+            if (viewHint) {
+                viewHint.innerHTML = `<button onclick="resetCameraView()" class="hover:text-cyan-300 transition-colors flex items-center gap-1.5 bg-white/5 hover:bg-white/10 px-3 py-1 rounded-full border border-white/10 pointer-events-auto"><i data-lucide="focus" class="w-3.5 h-3.5"></i> Recenter</button><span class="opacity-60">Orbit: L-Click | Pan: R-Click | Zoom: Scroll</span>`;
+                lucide.createIcons();
+            }
+        }
 
-            window.addEventListener('resize', () => { 
-                camera.aspect = container.clientWidth / container.clientHeight; 
-                camera.updateProjectionMatrix(); 
-                renderer.setSize(container.clientWidth, container.clientHeight); 
-            });
+        function recenterGraph() {
+            if (!controls || !camera) return;
+            const container = document.getElementById('canvas-container');
+            const aspect = container.clientWidth / container.clientHeight;
             
-            updateMotorSpecs(); updateAll();
+            const W = 1000 * aspect;
+            const H = 1000;
             
-            camera.position.set(30, 15, 30); 
-            controls.target.set(0, 10, 0); 
+            let maxV = graphMaxAlt;
+            let minV = 0;
+            if (simState.flightEnded) {
+                maxV = 0.1;
+                simState.dataLog.forEach(d => {
+                    let val = d.a;
+                    if(currentGraphMode === 'velocity') val = d.v;
+                    if(currentGraphMode === 'acceleration') val = d.acc;
+                    if (val > maxV) maxV = val;
+                    if (val < minV) minV = val;
+                });
+                const rangeV = maxV - minV;
+                maxV += rangeV * 0.05;
+                if(minV < 0) minV -= rangeV * 0.05;
+            }
+
+            const yRange = Math.max(0.1, maxV - minV);
+            const centerY = (maxV + minV) / 2;
+            const scaledCenterY = centerY * (1000 / yRange);
+
+            const cX = W / 2;
+            const cY = scaledCenterY;
+            
+            const fovR = THREE.MathUtils.degToRad(camera.fov);
+            const wB = W * 1.15; 
+            const hB = H * 1.15;
+            const dZ = Math.max(hB / (2 * Math.tan(fovR / 2)), (wB / aspect) / (2 * Math.tan(fovR / 2)));
+            
+            camera.position.set(cX, cY, dZ); 
+            camera.lookAt(cX, cY, 0); 
+            controls.target.set(cX, cY, 0); 
             controls.update();
-            requestAnimationFrame(physicsLoop);
-        }
-
-        function updateMotorSpecs() {
-            activeMotor = motors[document.getElementById('i-motor').value];
-        }
-
-        function runMathEngine() {
-            const d = design.bodyDia / 10; 
-            const massNose = design.noseLen * 0.5;
-            const massBody = design.bodyLen * 1.0;
-            const massFins = (design.finRoot * design.finSpan * 0.5) * design.finNum * 0.8;
             
-            const cgNose = design.noseLen * 0.5;
-            const cgBody = design.noseLen + (design.bodyLen / 2);
-            const cgFins = design.noseLen + design.bodyLen - (design.finRoot / 2);
-            
-            mathData.COM = (massNose*cgNose + massBody*cgBody + massFins*cgFins) / (massNose + massBody + massFins);
-            const totalL_meters = (design.bodyLen + design.noseLen) / 100;
-            mathData.momentOfInertia = (1/12) * mathData.dryMass * Math.pow(totalL_meters, 2);
-
-            let XN = design.noseType === 'conical' ? 0.666 * design.noseLen : 0.466 * design.noseLen;
-            const Lf = Math.sqrt(Math.pow(design.finSweep, 2) + Math.pow(design.finSpan, 2));
-            const CNF = (4 * design.finNum * Math.pow(design.finSpan/d, 2)) / (1 + Math.sqrt(1 + Math.pow(2*Lf / (design.finRoot + design.finTip), 2)));
-            const XF_local = (design.finSweep/3) * (design.finRoot + 2*design.finTip)/(design.finRoot + design.finTip) + (1/6) * (Math.pow(design.finRoot,2) + Math.pow(design.finTip,2) + design.finRoot*design.finTip)/(design.finRoot + design.finTip);
-            const XF = design.noseLen + design.bodyLen - design.finRoot + XF_local;
-
-            mathData.COP = (2.0 * XN + CNF * XF) / (2.0 + CNF);
-            mathData.Margin = (mathData.COP - mathData.COM) / d;
-
-            document.getElementById('hud-cg').innerText = mathData.COM.toFixed(1);
-            document.getElementById('hud-cp').innerText = mathData.COP.toFixed(1);
-            const marginEl = document.getElementById('hud-margin');
-            marginEl.innerText = mathData.Margin.toFixed(2);
-            if(mathData.Margin < 1.0) marginEl.className = "text-2xl font-black mono text-red-500";
-            else if(mathData.Margin > 3.0) marginEl.className = "text-2xl font-black mono text-amber-500";
-            else marginEl.className = "text-2xl font-black mono text-emerald-400";
+            rebuildGraph();
         }
 
-        function rebuildRocketMesh() {
+        function switchGraph(mode) {
+            currentGraphMode = mode;
+            ['altitude', 'velocity', 'acceleration'].forEach(m => {
+                const btn = document.getElementById(`btn-graph-${m.substring(0,3)}`);
+                if (!btn) return;
+                if (m === mode) {
+                    if(m==='altitude') btn.className = 'flex-1 text-[9px] py-1.5 rounded bg-blue-600/30 text-blue-400 font-bold uppercase transition-colors border border-blue-500/30';
+                    if(m==='velocity') btn.className = 'flex-1 text-[9px] py-1.5 rounded bg-emerald-600/30 text-emerald-400 font-bold uppercase transition-colors border border-emerald-500/30';
+                    if(m==='acceleration') btn.className = 'flex-1 text-[9px] py-1.5 rounded bg-amber-600/30 text-amber-400 font-bold uppercase transition-colors border border-amber-500/30';
+                } else {
+                    btn.className = 'flex-1 text-[9px] py-1.5 rounded hover:bg-white/5 text-slate-500 font-bold uppercase transition-colors border border-transparent';
+                }
+            });
+            recenterGraph();
+        }
+
+        function rebuildRocketMesh(isHighPoly = false) {
+            if(isCustomModel || !rocketGroup) return; 
+            
+            if (chuteMesh) rocketGroup.remove(chuteMesh);
+            if (comMarker) rocketGroup.remove(comMarker);
+            if (copMarker) rocketGroup.remove(copMarker);
+
             while(rocketGroup.children.length > 0) rocketGroup.remove(rocketGroup.children[0]); 
             
-            const R = (design.bodyDia / 10) / 2; const L = design.bodyLen;
+            const R = (design.bodyDia / 10) / 2; 
+            const L = design.bodyLen; 
+            const wall = design.wall; 
+            const innerR = Math.max(0.01, R - wall); 
+            
             const mB = new THREE.MeshStandardMaterial({ color: design.cBody, roughness: 0.3, metalness: 0.4 });
             const mN = new THREE.MeshStandardMaterial({ color: design.cNose, roughness: 0.3, metalness: 0.2 });
             const mF = new THREE.MeshStandardMaterial({ color: design.cFins, roughness: 0.5, metalness: 0.1 });
             
-            const tube = new THREE.Mesh(new THREE.CylinderGeometry(R, R, L, 32), mB);
-            tube.position.y = L/2; rocketGroup.add(tube);
+            const radSegs = isHighPoly ? 256 : 48;
+            const heightSegs = isHighPoly ? 128 : 32;
+
+            // Hollow Tube
+            const tPts = [ new THREE.Vector2(innerR, 0), new THREE.Vector2(R, 0), new THREE.Vector2(R, L), new THREE.Vector2(innerR, L), new THREE.Vector2(innerR, 0) ];
+            const tubeGeo = new THREE.LatheGeometry(tPts, radSegs);
+            const body = new THREE.Mesh(tubeGeo, mB); 
+            rocketGroup.add(body);
+            
+            // Aft Transition / Boattail
+            if (design.boatLen > 0) {
+                const aftR = (design.boatAft / 10) / 2;
+                const bPts = [ new THREE.Vector2(innerR, 0), new THREE.Vector2(aftR, -design.boatLen), new THREE.Vector2(R, 0), new THREE.Vector2(innerR, 0) ];
+                const boatGeo = new THREE.LatheGeometry(bPts, radSegs);
+                const boat = new THREE.Mesh(boatGeo, mB);
+                rocketGroup.add(boat);
+            }
+            
+            // Hollow Nose Cone
+            const shoulderLen = Math.min(R, 2); 
+            const clearance = 0.025; 
+            const sR = Math.max(0.01, innerR - clearance);
+            const innerSR = Math.max(0.001, sR - wall);
             
             const pts = [];
-            for (let i = 0; i <= 32; i++) {
-                const t = i / 32; const y = t * design.noseLen; let x;
+            for (let i = heightSegs; i >= 0; i--) {
+                const t = i / heightSegs; const y = t * design.noseLen;
+                if (y > design.noseLen - wall) continue; 
+                let origX;
+                if (design.noseType === 'conical') origX = R * (1 - t);
+                else if (design.noseType === 'ogive') origX = R * Math.sqrt(1 - Math.pow(t, 2));
+                else origX = R * (1 - Math.pow(t, 2)); // Parabolic approximation
+                pts.push(new THREE.Vector2(Math.max(0, origX - wall), y));
+            }
+            pts.push(new THREE.Vector2(innerSR, 0)); pts.push(new THREE.Vector2(innerSR, -shoulderLen));
+            pts.push(new THREE.Vector2(sR, -shoulderLen)); pts.push(new THREE.Vector2(sR, 0));
+            
+            for (let i = 0; i <= heightSegs; i++) {
+                const t = i / heightSegs; const y = t * design.noseLen; let x;
                 if (design.noseType === 'conical') x = R * (1 - t);
-                else x = R * Math.sqrt(1 - Math.pow(t, 2));
+                else if (design.noseType === 'ogive') x = R * Math.sqrt(1 - Math.pow(t, 2));
+                else x = R * (1 - Math.pow(t, 2)); // Parabolic
                 pts.push(new THREE.Vector2(x, y));
             }
-            const nose = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), mN); 
-            nose.position.y = L; rocketGroup.add(nose);
             
+            const nG = new THREE.LatheGeometry(pts, radSegs); 
+            const nose = new THREE.Mesh(nG, mN); 
+            nose.position.y = L; 
+            rocketGroup.add(nose);
+            
+            // Fins
             const fS = new THREE.Shape(); 
             fS.moveTo(0, 0); fS.lineTo(design.finSpan, design.finSweep); fS.lineTo(design.finSpan, design.finSweep + design.finTip); fS.lineTo(0, design.finRoot); fS.lineTo(0, 0);
-            const fG = new THREE.ExtrudeGeometry(fS, { depth: 0.3, bevelEnabled: false }); 
-            fG.translate(R - 0.05, 0, -0.15); 
+            const fG = new THREE.ExtrudeGeometry(fS, { depth: design.finThick/10, bevelEnabled: false }); 
+            fG.translate(R - 0.05, 0, -(design.finThick/10)/2); 
             
             for(let i=0; i<design.finNum; i++) { 
-                const fin = new THREE.Mesh(fG, mF); fin.rotation.y = (i * Math.PI * 2) / design.finNum; rocketGroup.add(fin); 
+                const fin = new THREE.Mesh(fG, mF); fin.rotation.y = (i * Math.PI * 2) / design.finNum; fin.position.y = design.finOff; rocketGroup.add(fin); 
+            }
+            
+            if (!isHighPoly) {
+                comMarker = new THREE.Mesh(new THREE.SphereGeometry(R*1.5, 16, 16), new THREE.MeshBasicMaterial({color: 0x0ea5e9})); 
+                copMarker = new THREE.Mesh(new THREE.SphereGeometry(R*1.5, 16, 16), new THREE.MeshBasicMaterial({color: 0xf43f5e}));
+                const tL = L + design.noseLen; 
+                comMarker.position.y = tL - results.COM; copMarker.position.y = tL - results.COP; 
+                rocketGroup.add(comMarker); rocketGroup.add(copMarker);
+                
+                chuteMesh.geometry.dispose(); chuteMesh.geometry = new THREE.SphereGeometry(design.recDia/4, 16, 16, 0, Math.PI*2, 0, Math.PI/2);
+                chuteMesh.position.y = tL + 10; chuteMesh.visible = simState && simState.deployed;
+                rocketGroup.add(chuteMesh);
+                
+                if (design.boatLen > 0) {
+                    rocketGroup.position.y = design.boatLen; // Lift rocket so boattail doesn't clip floor
+                } else {
+                    rocketGroup.position.y = 0;
+                }
+            }
+        }
+
+        function calculateBarrowman() {
+            const D = design.bodyDia / 10, R = D / 2, L = design.bodyLen, Ln = design.noseLen;
+            let Xn = (design.noseType === 'conical') ? (2/3)*Ln : (design.noseType === 'ogive') ? 0.466*Ln : 0.5*Ln;
+            const n = design.finNum, s = design.finSpan, Cr = design.finRoot, Ct = design.finTip, Sw = design.finSweep;
+            
+            const Lf = Math.sqrt(Math.pow(Sw + Ct/2 - Cr/2, 2) + Math.pow(s, 2)); 
+            const C_Na_fins = (1 + R / (s + R)) * (4 * n * Math.pow(s / D, 2)) / (1 + Math.sqrt(1 + Math.pow(2 * Lf / (Cr + Ct), 2)));
+            
+            // Boattail forces
+            let C_Na_tail = 0;
+            let X_tail = 0;
+            if (design.boatLen > 0) {
+                const Daft = design.boatAft / 10;
+                C_Na_tail = 2 * (Math.pow(Daft / D, 2) - 1); // Negative value, moves COP forward
+                X_tail = Ln + L + (design.boatLen / 3) * (1 + (1 - Daft/D)); 
             }
 
-            const chuteR = (design.chuteDia / 10) / 2; 
-            const chuteGeo = new THREE.SphereGeometry(chuteR, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-            parachuteMesh = new THREE.Mesh(chuteGeo, new THREE.MeshBasicMaterial({ color: 0xeab308, side: THREE.DoubleSide, wireframe: true }));
-            parachuteMesh.position.y = L + design.noseLen + chuteR; 
-            parachuteMesh.visible = false;
-            rocketGroup.add(parachuteMesh);
+            const C_Na_total = 2.0 + C_Na_fins + C_Na_tail;
+            
+            const Xf_start = Ln + L - design.finOff - Cr, Xf = Xf_start + (Sw / 3) * (Cr + 2 * Ct) / (Cr + Ct) + (1/6) * (Math.pow(Cr, 2) + Math.pow(Ct, 2) + Cr * Ct) / (Cr + Ct);
+            const COP = (2.0 * Xn + C_Na_fins * Xf + C_Na_tail * X_tail) / C_Na_total;
+            
+            // Component Masses
+            let tM, COM;
+            if (design.massOver) { tM = design.manMass; COM = design.manCom; } 
+            else {
+                const rhoTube = 0.5; // Cardboard/Fiberglass approx density g/cm3
+                const mB = (Math.PI * (Math.pow(R, 2) - Math.pow(R - design.wall/10, 2)) * L) * rhoTube; 
+                let mTail = 0;
+                if (design.boatLen > 0) mTail = (Math.PI * (Math.pow(R, 2) - Math.pow((design.boatAft/10)/2, 2)) * design.boatLen) * rhoTube;
+                
+                const finMat = finMaterials[design.finMat];
+                const mFins = (n * s * (Cr + Ct) / 2 * (design.finThick/10)) * (finMat.density / 1000); // Convert kg/m3 to g/cm3 equivalent
+                
+                tM = (Math.PI * Math.pow(R, 2) * Ln * 0.3 * 0.5) + mB + mTail + mFins + (motors[design.motor].mass * design.cluster) + design.payMass;
+                COM = ((Math.PI * Math.pow(R, 2) * Ln * 0.3 * 0.5 * Xn) + (mB * (Ln + L/2)) + (mTail * (Ln + L + design.boatLen/2)) + ((motors[design.motor].mass * design.cluster) * (Ln + L - 3)) + (design.payMass * design.payPos) + (mFins * Xf)) / tM;
+            }
+            
+            // Fin Flutter Math
+            const finMat = finMaterials[design.finMat];
+            const S_fin = 0.5 * s * (Cr + Ct) / 10000; // m2
+            const AR = 2 * Math.pow(s/100, 2) / S_fin;
+            const lambda = Ct / Cr;
+            const P = 101325; // Standard sea level pressure
+            const a = 343; // Speed of sound
+            const t_cr = (design.finThick/10) / Cr;
+            
+            const term1 = 1.337 * Math.pow(AR, 3) * P * (lambda + 1);
+            const term2 = 2 * (AR + 2) * Math.pow(t_cr, 3);
+            const Vf = a * Math.sqrt(finMat.G / (term1 / term2));
 
-            const comOffset = (design.bodyLen + design.noseLen) - mathData.COM;
-            rocketGroup.children.forEach(c => { c.position.y -= comOffset; });
+            const padTwr = (motors[design.motor].thrust * design.cluster) / ((tM / 1000) * 9.81);
+            results = { COP, COM, margin: (COP - COM) / D, mass: tM, origMass: tM, origCOM: COM, padTwr, C_Na_total, Vf };
+            
+            setText('res-mass', results.mass.toFixed(1) + "g"); setText('res-thrust', padTwr.toFixed(1)); setText('res-com', results.COM.toFixed(1) + "cm"); setText('res-cop', results.COP.toFixed(1) + "cm"); setText('res-margin-hud', results.margin.toFixed(2) + " cal");
+            
+            const hudStabEl = document.getElementById('res-margin-hud');
+            
+            if (hudStabEl) {
+                if (results.margin < 1.0) {
+                    hudStabEl.className = "text-xl font-black mono transition-colors text-red-400";
+                } else if (results.margin > 2.5) {
+                    hudStabEl.className = "text-xl font-black mono transition-colors text-amber-400";
+                } else {
+                    hudStabEl.className = "text-xl font-black mono transition-colors text-emerald-400";
+                }
+            }
+        }
 
-            rocketGroup.position.y = 0.5;
+        // --- NEW RIGID BODY AERODYNAMIC PHYSICS ---
+        function getAtmo(alt) { const T = 288.15 - 0.0065 * Math.max(0, alt); const P = 101325 * Math.pow(1 - 0.0000225577 * Math.max(0, alt), 5.25588); return { rho: P / (287.05 * T), a: Math.sqrt(1.4 * 287.05 * T), mu: 1.81e-5 }; }
+        function getMachMultiplier(mach) { if (mach < 0.8) return 1.0; if (mach < 1.1) return 1.0 + ((mach - 0.8) / 0.3) * 1.5; return 2.5 * Math.pow(1.1 / mach, 0.5); }
+        function getThrust(time, motor) { if (time > motor.burn) return 0; const tPeak = motor.burn * 0.1; if (time < tPeak) return (time / tPeak) * (motor.thrust * 2); return motor.thrust * 0.8 + (motor.thrust * 1.2) * Math.exp(-(time - tPeak) * 5); }
 
-            const markerScale = R * 1.5;
-            comMarker.scale.set(markerScale, markerScale, markerScale);
-            copMarker.scale.set(markerScale, markerScale, markerScale);
+        function fastSimulate() {
+            let alt = 0, velX = 0, velY = 0, time = 0, pitch = 0, pitchVel = 0, maxA = 0, maxV = 0, maxQ = 0; 
+            const dt = 1/50; 
+            const motor = motors[design.motor];
+            const origMassKg = results.origMass / 1000;
+            const area = Math.PI * Math.pow((design.bodyDia/2000), 2);
+            const wettedArea = Math.PI * (design.bodyDia/1000) * ((design.bodyLen + design.noseLen + design.boatLen)/100);
+            const I_base = Math.pow(design.bodyLen/100, 2) / 12 + Math.pow(design.bodyDia/2000, 2) / 4;
+            
+            let railCleared = false;
+
+            for(let i=0; i<3000; i++) { 
+                const thrust = getThrust(time, motor) * design.cluster;
+                const currentMassKg = origMassKg - (motor.propMass * design.cluster * Math.min(1, time / motor.burn)) / 1000;
+                const atmo = getAtmo(alt);
+                
+                const wind_ms = convertTo(design.wind, userUnits['wind'], 'm/s');
+                const v_air_x = velX - wind_ms;
+                const v_air_y = velY;
+                const v_mag = Math.sqrt(v_air_x*v_air_x + v_air_y*v_air_y) || 0.001; 
+                
+                const mach = v_mag / atmo.a;
+                
+                // Dynamic Skin Friction Drag
+                const Re = (v_mag * ((design.bodyLen + design.noseLen)/100)) / atmo.mu;
+                const Cf = 0.074 / Math.pow(Math.max(Re, 1), 0.2); 
+                const baseCd = design.cd * getMachMultiplier(mach);
+                const currentCd = baseCd + Cf * (wettedArea / area);
+
+                const q = 0.5 * atmo.rho * Math.pow(v_mag, 2);
+                
+                let alpha = 0;
+                if (alt >= design.railLen/100) railCleared = true;
+
+                if (v_mag > 1 && railCleared) {
+                    const flightPathAngle = Math.atan2(v_air_x, v_air_y);
+                    alpha = pitch - flightPathAngle;
+                    while (alpha > Math.PI) alpha -= 2 * Math.PI;
+                    while (alpha < -Math.PI) alpha += 2 * Math.PI;
+                }
+
+                const normalForce = q * area * results.C_Na_total * alpha;
+                const inducedDrag = Math.abs(normalForce * Math.sin(alpha));
+                const totalDragF = (q * currentCd * area) + inducedDrag;
+                
+                if (railCleared) {
+                    const burnedMass = (motor.propMass * design.cluster) * Math.min(1, time / motor.burn);
+                    const mass = results.origMass - burnedMass;
+                    const motorX = design.noseLen + design.bodyLen - 1.5; 
+                    const dynCOM = (results.origCOM * results.origMass - motorX * burnedMass) / mass;
+                    const cp_dist_m = (results.COP - dynCOM) / 100;
+                    
+                    const restoringTorque = -normalForce * cp_dist_m; 
+                    const dampingCoeff = 0.5 * atmo.rho * v_mag * area * results.C_Na_total * Math.pow(cp_dist_m, 2);
+                    const I = currentMassKg * I_base;
+
+                    pitchVel += ((restoringTorque - dampingCoeff * pitchVel) / I) * dt;
+                    pitchVel = Math.max(-10, Math.min(10, pitchVel));
+                    pitch += pitchVel * dt;
+                    if (Math.abs(pitch) > Math.PI/2.5) break; 
+                }
+
+                const Thrust_X = thrust * Math.sin(pitch);
+                const Thrust_Y = thrust * Math.cos(pitch);
+                
+                const Drag_X = totalDragF * (v_air_x / v_mag);
+                const Drag_Y = totalDragF * (v_air_y / v_mag);
+
+                let accelX = 0;
+                if(railCleared) accelX = (Thrust_X - Drag_X) / currentMassKg;
+                const accelY = (Thrust_Y - Drag_Y - currentMassKg * 9.81) / currentMassKg; 
+                
+                velX += accelX * dt; 
+                velY += accelY * dt;
+                
+                if(!railCleared) { velX = 0; pitch = 0; pitchVel = 0; }
+                
+                alt += velY * dt; 
+                time += dt;
+                
+                const totalVel = Math.sqrt(velX*velX + velY*velY);
+                if (alt > maxA) maxA = alt; if (totalVel > maxV) maxV = totalVel; if (q > maxQ) maxQ = q;
+                if (alt < 0 && time > 1.0) break;
+            }
+            livePredictions = { apogee: maxA, maxVel: maxV, maxQ: maxQ };
+        }
+
+        function stepPhysics(dt) {
+            if (simState.status === 'failure' || simState.flightEnded) return;
+
+            const motor = motors[design.motor];
+            const burnRatio = Math.min(1, simState.time / motor.burn);
+            const burnedMass = (motor.propMass * design.cluster) * burnRatio;
+            
+            if (!design.massOver) {
+                results.mass = results.origMass - burnedMass;
+                const motorX = design.noseLen + design.bodyLen - 1.5; 
+                results.COM = (results.origCOM * results.origMass - motorX * burnedMass) / results.mass;
+                results.margin = (results.COP - results.COM) / (design.bodyDia / 10);
+            }
+
+            const currentMassKg = results.mass / 1000;
+            const atmo = getAtmo(simState.altitude);
+            
+            const wind_ms = convertTo(design.wind, userUnits['wind'], 'm/s');
+            const v_air_x = simState.velX - wind_ms;
+            const v_air_y = simState.velY;
+            const v_mag = Math.sqrt(v_air_x*v_air_x + v_air_y*v_air_y) || 0.001; 
+            
+            const mach = v_mag / atmo.a;
+            if (mach > flightProfile.maxMach) flightProfile.maxMach = mach;
+
+            let area = Math.PI * Math.pow((design.bodyDia/2000), 2);
+            const wettedArea = Math.PI * (design.bodyDia/1000) * ((design.bodyLen + design.noseLen + design.boatLen)/100);
+            const Re = (v_mag * ((design.bodyLen + design.noseLen)/100)) / atmo.mu;
+            const Cf = 0.074 / Math.pow(Math.max(Re, 1), 0.2); 
+            let currentCd = (design.cd * getMachMultiplier(mach)) + Cf * (wettedArea / area);
+            
+            let alpha = 0;
+            if (v_mag > 1 && !simState.deployed) {
+                const flightPathAngle = Math.atan2(v_air_x, v_air_y);
+                alpha = simState.pitch - flightPathAngle;
+                while (alpha > Math.PI) alpha -= 2 * Math.PI;
+                while (alpha < -Math.PI) alpha += 2 * Math.PI;
+            }
+
+            const q = 0.5 * atmo.rho * Math.pow(v_mag, 2);
+            if (q > flightProfile.maxQ) flightProfile.maxQ = q;
+            if (q > design.matMaxQ) { failFlight(`STRUCTURAL SHRED (Max Q ${Math.floor(q/1000)}kPa exceeded limit ${Math.floor(design.matMaxQ/1000)}kPa)`); return; }
+            if (v_mag > results.Vf) { failFlight(`FIN FLUTTER SHRED (Velocity ${Math.floor(v_mag)}m/s exceeded ${design.finMat.toUpperCase()} Fin limit ${Math.floor(results.Vf)}m/s)`); return; }
+
+            if (simState.altitude >= design.railLen/100 && !simState.railCleared) { simState.railVel = simState.velocity; simState.railCleared = true; }
+
+            if (design.recType !== 'none' && !simState.deployed) {
+                if (design.dualDeploy) {
+                    if (simState.velY < 0 && simState.time > motor.burn) simState.drogueDeployed = true;
+                    if (simState.drogueDeployed && simState.altitude <= design.mainAlt) simState.mainDeployed = true;
+                    if (simState.mainDeployed || simState.drogueDeployed) simState.deployed = true;
+                } else {
+                    if (design.recEvent === 'delay' && simState.time >= motor.burn + motor.delay) simState.deployed = true;
+                    if (design.recEvent === 'apogee' && simState.velY < 0 && simState.time > motor.burn) simState.deployed = true;
+                    if (simState.deployed) simState.mainDeployed = true;
+                }
+                
+                if (simState.deployed && !simState.chuteWarned) { 
+                    if (v_mag > 35) { failFlight("CHUTE SHREDDED (Deployed > 35m/s)"); return; }
+                    if (chuteMesh) chuteMesh.visible = true; 
+                    showToast("Recovery Deployed", "info"); 
+                    simState.chuteWarned = true;
+                }
+            }
+
+            if (simState.deployed) {
+                if (simState.mainDeployed) {
+                    if (design.recType === 'parachute') { area = Math.PI * Math.pow((design.recDia/200), 2); currentCd = 1.5; }
+                    else { area = (design.recDia/100) * 0.1; currentCd = 0.6; }
+                } else if (simState.drogueDeployed) {
+                    area = Math.PI * Math.pow((design.drogueDia/200), 2); currentCd = 1.5;
+                }
+                simState.pitch = 0; simState.pitchVel = 0; alpha = 0; 
+            }
+
+            const thrust = getThrust(simState.time, motor) * design.cluster;
+            
+            const normalForce = q * area * results.C_Na_total * alpha;
+            const inducedDrag = Math.abs(normalForce * Math.sin(alpha));
+            const totalDragF = (q * currentCd * area) + inducedDrag;
+            
+            if (simState.railCleared && !simState.deployed) {
+                const cp_dist_m = (results.COP - results.COM) / 100; 
+                
+                const restoringTorque = -normalForce * cp_dist_m; 
+                const dampingCoeff = 0.5 * atmo.rho * v_mag * area * results.C_Na_total * Math.pow(cp_dist_m, 2);
+                
+                const I = currentMassKg * (Math.pow(design.bodyLen/100, 2) / 12 + Math.pow(design.bodyDia/2000, 2) / 4);
+
+                const angAccel = (restoringTorque - dampingCoeff * simState.pitchVel) / I;
+                
+                simState.pitchVel += angAccel * dt;
+                simState.pitchVel = Math.max(-10, Math.min(10, simState.pitchVel));
+                simState.pitch += simState.pitchVel * dt;
+                
+                if (Math.abs(simState.pitch) > Math.PI/2.5) { failFlight("AERODYNAMIC TUMBLE (Instability Caused Loss of Control)"); return; }
+            }
+
+            const Thrust_X = thrust * Math.sin(simState.pitch);
+            const Thrust_Y = thrust * Math.cos(simState.pitch);
+            
+            const Drag_X = totalDragF * (v_air_x / v_mag);
+            const Drag_Y = totalDragF * (v_air_y / v_mag);
+
+            let accelX = 0;
+            if(simState.railCleared) accelX = (Thrust_X - Drag_X) / currentMassKg;
+            const accelY = (Thrust_Y - Drag_Y - (currentMassKg * 9.81)) / currentMassKg; 
+
+            simState.velX += accelX * dt; 
+            simState.velY += accelY * dt;
+            
+            if (!simState.railCleared) {
+                simState.velX = 0;
+                simState.pitch = 0;
+                simState.pitchVel = 0;
+            }
+
+            simState.posX += simState.velX * dt;
+            simState.altitude += simState.velY * dt;
+            simState.time += dt;
+            simState.velocity = Math.sqrt(simState.velX*simState.velX + simState.velY*simState.velY);
+            
+            if (simState.altitude > flightProfile.maxAlt) flightProfile.maxAlt = simState.altitude;
+            if (simState.velocity > flightProfile.maxVel) flightProfile.maxVel = simState.velocity;
+            if (simState.deployed) flightProfile.descRate = simState.velY;
+
+            if (simState.altitude <= 0 && simState.time > 1) { 
+                simState.altitude = 0; flightProfile.impactV = Math.abs(simState.velY); simState.velocity = 0; 
+                if (flightProfile.impactV > 15) { simState.status = 'warning'; simState.failReason = "LAWN DART (Impact Velocity Fatal)"; }
+                simState.flightEnded = true; stopFlight(); 
+            }
+            
+            // LOG THE VERTICAL COMPONENTS INSTEAD OF ABSOLUTE MAGNITUDES
+            simState.dataLog.push({ t: simState.time, a: simState.altitude, v: simState.velY, acc: accelY, th: thrust, d: totalDragF, m: currentMassKg, q: q, mach: mach });
+        }
+        // --- END OF NEW PHYSICS REWRITE ---
+
+        function updateLiveUI() {
+            setText('res-apogee-hud', livePredictions.apogee > 0 ? livePredictions.apogee.toFixed(0) + "m" : "--");
+            setText('res-margin-hud', results.margin.toFixed(2) + " cal");
+            
+            setText('res-mass', results.mass.toFixed(1) + "g");
+            setText('res-com', results.COM.toFixed(1) + "cm");
+            
+            const hudStabEl = document.getElementById('res-margin-hud');
+            if (hudStabEl) {
+                if (results.margin < 1.0) hudStabEl.className = "text-xl font-black mono transition-colors text-red-400";
+                else if (results.margin > 2.5) hudStabEl.className = "text-xl font-black mono transition-colors text-amber-400";
+                else hudStabEl.className = "text-xl font-black mono transition-colors text-emerald-400";
+            }
+        }
+
+        function failFlight(reason) {
+            simState.status = 'failure'; simState.failReason = reason; simState.flightEnded = true; simState.running = false;
+            if(rocket2D) rocket2D.visible = false; 
+            if(rocketGroup) rocketGroup.visible = false;
+            for(let i=0; i<30; i++) {
+                const p = new THREE.Mesh(new THREE.SphereGeometry(Math.random()*5, 8, 8), new THREE.MeshBasicMaterial({ color: Math.random()>0.5 ? 0xff4444 : 0xf59e0b }));
+                if (rocketGroup) p.position.copy(rocketGroup.position);
+                const vel = new THREE.Vector3((Math.random()-0.5)*20, (Math.random()-0.5)*20, (Math.random()-0.5)*20);
+                scene.add(p); explodeParticles.push({mesh: p, vel, life: 1.0});
+            }
+            stopFlight();
+        }
+
+        function startFlight() {
+            if (results.padTwr < 1.0) { showToast("TWR < 1.0. Rocket too heavy to lift off.", "error"); return; }
+            if (results.padTwr < 3.0) showToast("WARNING: TWR < 3.0. Sluggish rail exit expected.", "warn");
+
+            simState = { running: true, flightEnded: false, time: 0, altitude: 0, velocity: 0, velX: 0, velY: 0, posX: 0, pitch: 0, pitchVel: 0, driftX: 0, xScale: 20, yScale: 10, deployed: false, drogueDeployed: false, mainDeployed: false, chuteWarned: false, railCleared: false, railVel: 0, dataLog: [], status: 'nominal', failReason: '', fastForward: false, ffShown: false, paused: false };
+            trailPoints = []; 
+            if(trailLine) trailLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(trailPoints, 3));
+            if(chuteMesh) chuteMesh.visible = false;
+            
+            graphMaxAlt = 50; graphMaxTime = 3; 
+            flightProfile = { maxAlt: 0, maxTime: 0, maxVel: 0, maxQ: 0, maxMach: 0, drift: 0, descRate: 0, impactV: 0 };
+            explodeParticles.forEach(p => scene.remove(p.mesh)); explodeParticles = [];
+            
+            if(controls) controls.enabled = false;
+            
+            showEl('graph-overlay');
+            if(graphAxesLine) graphAxesLine.visible = true;
+            if(graphMinorAxesLine) graphMinorAxesLine.visible = true; 
+            if(rocketGroup) rocketGroup.visible = false; 
+            if(rocket2D) rocket2D.visible = true;
+            if(grid) grid.visible = false;
+            if(pad) pad.visible = false;
+            
+            // Activate the clipping mask to cleanly bound the 3D drawing area
+            const canvas = document.getElementById('gl-canvas');
+            if (canvas) canvas.style.clipPath = 'inset(0px 0px 40px 70px)';
+            const axesOverlay = document.getElementById('graph-axes-overlay');
+            if (axesOverlay) axesOverlay.classList.remove('hidden');
+            
+            const btnL = document.getElementById('btn-launch'); if(btnL) btnL.disabled = true; 
+            
+            showEl('sim-controls');
+            const pBtn = document.getElementById('btn-pause');
+            const pIcon = document.getElementById('icon-pause');
+            if (pBtn && pIcon) {
+                pBtn.classList.remove('bg-blue-600/90', 'text-white', 'border-blue-500/50', 'shadow-[0_0_15px_rgba(59,130,246,0.3)]');
+                pBtn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-400', 'hover:text-white', 'border-white/5');
+                pIcon.setAttribute('data-lucide', 'pause');
+                setText('txt-pause', 'PAUSE');
+            }
+            
+            const ffBtn = document.getElementById('btn-fast-forward');
+            if (ffBtn) {
+                ffBtn.disabled = true;
+                ffBtn.classList.remove('bg-amber-600', 'text-white', 'border-amber-500/50', 'shadow-[0_0_15px_rgba(217,119,6,0.3)]', 'bg-slate-800', 'hover:bg-slate-700', 'hover:text-white', 'cursor-pointer');
+                ffBtn.classList.add('bg-slate-900', 'text-slate-600', 'border-white/5', 'cursor-not-allowed');
+                setText('ff-text', 'FAST DESCENT');
+            }
+            lucide.createIcons();
+
+            hideEl('view-hint'); 
+            hideEl('post-flight-results');
+            hideEl('postflight-ai-output'); 
+            setText('postflight-ai-report', '');
+            const reasCont = document.getElementById('postflight-reasoning-container');
+            if (reasCont) reasCont.classList.add('hidden');
+            
+            const gyP = document.getElementById('graph-y-ptr'); if(gyP) gyP.style.display = 'block';
+            const gxP = document.getElementById('graph-x-ptr'); if(gxP) gxP.style.display = 'block';
+
+            const yLabel = document.getElementById('lbl-graph-y');
+            if (yLabel) {
+                yLabel.innerText = 'Altitude (m)';
+                yLabel.className = 'absolute left-2 top-1/2 -translate-y-1/2 text-[9px] text-blue-500 uppercase -rotate-90 font-bold tracking-[0.2em] z-40 transition-colors';
+            }
+            if (trailLine) trailLine.material.color.setHex(0x0ea5e9);
+            switchGraph('altitude'); 
+            
+            if(!isCustomModel && comMarker) { comMarker.visible = false; copMarker.visible = false; }
+            
+            rebuildGraph(); switchTab('flight');
+        }
+
+        function stopFlight() { 
+            simState.running = false; 
+            const btnL = document.getElementById('btn-launch');
+            if(btnL) { btnL.disabled = false; btnL.innerHTML = '<i data-lucide="power" class="w-5 h-5 fill-white"></i> RE-LAUNCH'; }
+            
+            hideEl('sim-controls');
+            
+            showEl('post-flight-results');
+            const title = document.getElementById('mission-status-title'), reason = document.getElementById('mission-fail-reason');
+            if (title) {
+                if (simState.status === 'failure') { title.className = "text-sm uppercase tracking-[0.15em] flex items-center gap-2 mb-2 status-fail"; title.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4"></i> MISSION FAILURE`; if(reason) { reason.classList.remove('hidden'); reason.innerText = simState.failReason; } }
+                else if (simState.status === 'warning') { title.className = "text-sm uppercase tracking-[0.15em] flex items-center gap-2 mb-2 status-warn"; title.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4"></i> MISSION WARNING`; if(reason) { reason.classList.remove('hidden'); reason.innerText = simState.failReason; } }
+                else { title.className = "text-sm uppercase tracking-[0.15em] flex items-center gap-2 mb-2 status-pass"; title.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> MISSION SUCCESS`; if(reason) reason.classList.add('hidden'); }
+            }
+
+            setText('res-post-alt', flightProfile.maxAlt.toFixed(1) + 'm'); setText('res-post-vel', flightProfile.maxVel.toFixed(1) + 'm/s'); setText('res-post-mach', flightProfile.maxMach.toFixed(2));
+            setText('res-post-q', (flightProfile.maxQ / 1000).toFixed(1) + ' kPa'); 
+            setText('res-post-rail', simState.railVel.toFixed(1) + 'm/s'); 
+            const postRail = document.getElementById('res-post-rail');
+            if(postRail) postRail.className = simState.railVel < 15 ? "font-bold text-red-400 mono text-[10px]" : "font-bold text-emerald-400 mono text-[10px]";
+            setText('res-post-desc', Math.abs(flightProfile.descRate).toFixed(1) + 'm/s'); setText('res-post-impact', flightProfile.impactV.toFixed(1) + 'm/s');
+
+            setText('lbl-hud-alt', 'APOGEE'); setText('hud-alt', flightProfile.maxAlt.toFixed(1) + 'm');
+            setText('lbl-hud-vel', 'MAX VEL'); setText('hud-vel', flightProfile.maxVel.toFixed(1) + 'm/s');
+            setText('lbl-hud-mach', 'MAX MACH'); setText('hud-mach', flightProfile.maxMach.toFixed(2));
+            setText('lbl-hud-time', 'TOTAL TIME'); setText('hud-time', simState.time.toFixed(1) + 's');
+
+            const gyP = document.getElementById('graph-y-ptr'); if(gyP) gyP.style.display = 'none';
+            const gxP = document.getElementById('graph-x-ptr'); if(gxP) gxP.style.display = 'none';
+
+            graphMaxTime = simState.time; recenterGraph();
+            if(controls) {
+                controls.enabled = true; controls.enableRotate = false; controls.enablePan = true; controls.enableZoom = true;
+                controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+            }
+            const viewHint = document.getElementById('view-hint');
+            if(viewHint) {
+                viewHint.innerHTML = `<button onclick="recenterGraph()" class="hover:text-cyan-300 transition-colors flex items-center gap-1.5 bg-white/5 hover:bg-white/10 px-3 py-1 rounded-full border border-white/10 pointer-events-auto"><i data-lucide="focus" class="w-3.5 h-3.5"></i> Recenter Graph</button><span class="opacity-60">Pan: Click+Drag | Zoom: Scroll</span>`;
+                viewHint.classList.remove('hidden'); lucide.createIcons();
+            }
+            if(simState.status === 'nominal') showToast("Flight Complete. Graph Navigation Active.", "success");
+        }
+        
+        function resetFlight() { 
+            simState = { running: false, flightEnded: false, time: 0, altitude: 0, velocity: 0, velX: 0, velY: 0, posX: 0, pitch: 0, pitchVel: 0, driftX: 0, xScale: 20, yScale: 10, deployed: false, drogueDeployed: false, mainDeployed: false, chuteWarned: false, railCleared: false, railVel: 0, dataLog: [], status: 'nominal', failReason: '', fastForward: false, ffShown: false, paused: false }; 
+            if(rocketGroup) { rocketGroup.position.set(0,0,0); rocketGroup.rotation.set(0,0,0); }
+            trailPoints = []; 
+            if(trailLine) trailLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(trailPoints, 3)); 
+            explodeParticles.forEach(p => scene.remove(p.mesh)); explodeParticles = [];
+            if(chuteMesh) chuteMesh.visible = false;
+            
+            const btnL = document.getElementById('btn-launch'); if(btnL) btnL.disabled = false;
+            if(controls) controls.enabled = true; 
+            resetCameraView(); 
+            if(rocketGroup) rocketGroup.visible = true; 
+            if(rocket2D) rocket2D.visible = false; 
+            if(graphAxesLine) graphAxesLine.visible = false;
+            if(graphMinorAxesLine) graphMinorAxesLine.visible = false;
+            if(grid) grid.visible = true;
+            if(pad) pad.visible = true;
+            
+            const canvas = document.getElementById('gl-canvas');
+            if (canvas) canvas.style.clipPath = 'none';
+            const axesOverlay = document.getElementById('graph-axes-overlay');
+            if (axesOverlay) axesOverlay.classList.add('hidden');
+
+            hideEl('sim-controls');
+
+            hideEl('graph-overlay'); 
+            hideEl('post-flight-results'); 
+            hideEl('postflight-ai-output');
+            
+            if(btnL) btnL.innerHTML = '<i data-lucide="power" class="w-5 h-5 fill-white"></i> IGNITION'; 
+            showEl('view-hint');
+            
+            if(!isCustomModel && comMarker) { comMarker.visible = true; copMarker.visible = true; } 
+            calculateBarrowman(); 
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(scene && camera && renderer) {
+                if (simState.running) { 
+                    
+                    if (simState.deployed && !simState.ffShown) {
+                        simState.ffShown = true;
+                        const ffBtn = document.getElementById('btn-fast-forward');
+                        if (ffBtn) {
+                            ffBtn.disabled = false;
+                            ffBtn.classList.remove('bg-slate-900', 'text-slate-600', 'cursor-not-allowed');
+                            ffBtn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-400', 'hover:text-white', 'cursor-pointer');
+                        }
+                    }
+
+                    if (!simState.paused) {
+                        let steps = simState.fastForward ? 30 : 3;
+                        for(let i=0; i<steps; i++) stepPhysics(1/180); 
+                    }
+                    
+                    if (simState.status === 'nominal' || simState.status === 'warning') {
+                        if (simState.altitude > graphMaxAlt * 0.85) { graphMaxAlt *= 1.5; }
+                        if (simState.time > graphMaxTime * 0.85) { graphMaxTime *= 1.5; }
+                        
+                        rebuildGraph();
+                        
+                        const container = document.getElementById('canvas-container'), aspect = container.clientWidth / container.clientHeight, fovRad = THREE.MathUtils.degToRad(camera.fov);
+                        
+                        const H_total = graphMaxAlt * simState.yScale;
+                        const W_total = graphMaxTime * simState.xScale;
+                        const hB = Math.max(10, H_total * 1.4);
+                        const wB = W_total * 1.2;
+                        const dZ = Math.max(hB / (2 * Math.tan(fovRad / 2)), (wB / aspect) / (2 * Math.tan(fovRad / 2)));
+                        
+                        // Dynamically anchor camera to maintain origin properly while zoomed
+                        const viewWidth = 2 * dZ * Math.tan(fovRad / 2) * aspect;
+                        const viewHeight = 2 * dZ * Math.tan(fovRad / 2);
+                        
+                        const targetX = viewWidth * 0.4;
+                        const targetY = viewHeight * 0.35;
+                        
+                        camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetX, 0.05); 
+                        camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetY, 0.05); 
+                        camera.position.z = THREE.MathUtils.lerp(camera.position.z, dZ, 0.05); 
+                        if(controls) { controls.target.set(camera.position.x, camera.position.y, 0); controls.update(); }
+                        
+                        if (!simState.paused) {
+                            let currentVal = simState.altitude;
+                            if(currentGraphMode === 'velocity') currentVal = simState.velY;
+                            if(currentGraphMode === 'acceleration') currentVal = (simState.dataLog.length > 0) ? simState.dataLog[simState.dataLog.length-1].acc : 0;
+                            
+                            const ptrPos = new THREE.Vector3(simState.time * simState.xScale, currentVal * simState.yScale, 0);
+                            ptrPos.project(camera);
+                            
+                            const pxX = (ptrPos.x * 0.5 + 0.5) * container.clientWidth;
+                            const pxY = (ptrPos.y * -0.5 + 0.5) * container.clientHeight;
+                            
+                            const yPtr = document.getElementById('graph-y-ptr'); if(yPtr) { yPtr.style.top = `${pxY}px`; yPtr.style.bottom = 'auto'; } setText('txt-curr-alt', currentVal.toFixed(1));
+                            const xPtr = document.getElementById('graph-x-ptr'); if(xPtr) { xPtr.style.left = `${pxX}px`; xPtr.style.bottom = 'auto'; xPtr.style.top = '0'; } setText('txt-curr-time', simState.time.toFixed(1));
+                            
+                            if (simState.time < motors[design.motor].burn) {
+                                const thrust = getThrust(simState.time, motors[design.motor]) * design.cluster;
+                                if (thrust > 0 && Math.random() < 0.5) {
+                                    const p = new THREE.Mesh(new THREE.SphereGeometry((thrust / 15) + Math.random()*2, 8, 8), new THREE.MeshBasicMaterial({ color: Math.random() > 0.4 ? 0xf59e0b : 0xf97316, transparent: true, opacity: 0.8 }));
+                                    if(rocketGroup) p.position.copy(rocketGroup.position); const pV = new THREE.Vector3((Math.random()-0.5)*2, -(4 + Math.random()*4), (Math.random()-0.5)*2); if(rocketGroup) pV.applyAxisAngle(new THREE.Vector3(0,0,1), rocketGroup.rotation.z); scene.add(p); particles.push({ mesh: p, vel: pV, life: 1.0 });
+                                }
+                            }
+                            
+                            // Sync Live Predictor UI with actual flight data
+                            livePredictions.apogee = simState.altitude;
+                            updateLiveUI();
+                        }
+                    }
+                } 
+                else if (controls && !simState.flightEnded) controls.update(); 
+                else if (controls && simState.flightEnded) {
+                    controls.update(); 
+                    rebuildGraph();
+                }
+                
+                if (!simState.paused) {
+                    for (let i = explodeParticles.length - 1; i >= 0; i--) { let p = explodeParticles[i]; p.mesh.position.add(p.vel); p.life -= 0.02; p.mesh.material.opacity = p.life; if (p.life <= 0) { scene.remove(p.mesh); explodeParticles.splice(i, 1); } }
+                    for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.mesh.position.add(p.vel); p.life -= 0.05; p.mesh.material.opacity = p.life; p.mesh.scale.multiplyScalar(0.9); if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); } }
+                }
+                renderer.render(scene, camera);
+            }
+        }
+
+        function syncInputsToState() {
+            Object.keys(paramConfig).forEach(key => {
+                const slider = document.getElementById(paramConfig[key].id);
+                if (slider) design[key] = convertTo(parseFloat(slider.value), userUnits[key], paramConfig[key].baseUnit);
+            });
+
+            design.noseType = document.getElementById('i-noseType')?.value || 'ogive';
+            design.motor = document.getElementById('i-motor')?.value || 'C6-5';
+            design.cluster = parseInt(document.getElementById('i-cluster')?.value || 1);
+            
+            design.dualDeploy = document.getElementById('i-dualDeploy')?.checked || false;
+            
+            design.recType = document.getElementById('i-recType')?.value || 'parachute';
+            design.recEvent = document.getElementById('i-recEvent')?.value || 'delay';
+            design.finMat = document.getElementById('i-finMat')?.value || 'plywood';
+            design.massOver = document.getElementById('i-massOver')?.checked || false;
+            design.cBody = document.getElementById('i-colBody')?.value || '#e2e8f0';
+            design.cNose = document.getElementById('i-colNose')?.value || '#ef4444';
+            design.cFins = document.getElementById('i-colFins')?.value || '#ef4444';
+            
+            const mat = document.getElementById('i-material')?.value || 'cardboard';
+            if (mat === 'cardboard') design.matMaxQ = 50000; else if (mat === 'fiberglass') design.matMaxQ = 150000; else design.matMaxQ = 300000;
+            
+            updateDisplayValues();
+            
+            const overPanel = document.getElementById('mass-over-panel'), autoPanel = document.getElementById('mass-auto-panel');
+            if (overPanel && autoPanel) {
+                if(design.massOver) { overPanel.classList.remove('opacity-30', 'pointer-events-none'); autoPanel.classList.add('opacity-30', 'pointer-events-none'); }
+                else { overPanel.classList.add('opacity-30', 'pointer-events-none'); autoPanel.classList.remove('opacity-30', 'pointer-events-none'); }
+            }
+            
+            const singleRec = document.getElementById('single-deploy-panel');
+            const dualRec = document.getElementById('dual-deploy-panel');
+            if (singleRec && dualRec) {
+                if (design.dualDeploy) {
+                    singleRec.classList.add('opacity-30', 'pointer-events-none');
+                    dualRec.classList.remove('hidden');
+                } else {
+                    singleRec.classList.remove('opacity-30', 'pointer-events-none');
+                    dualRec.classList.add('hidden');
+                }
+            }
         }
 
         function updateAll() { 
-            if(isSimulating) return;
-            design.noseType = document.getElementById('i-noseType').value;
-            runMathEngine(); rebuildRocketMesh(); 
+            syncInputsToState(); 
+            calculateBarrowman(); 
+            fastSimulate(); 
+            updateLiveUI();
+            rebuildRocketMesh(); 
         }
 
-        function launchRocket() {
-            if (isSimulating) return;
-            if (mathData.Margin < 1.0) { showToast("Cannot launch: Rocket is unstable!", "error"); return; }
+        function resetDesign() { 
+            design = { ...design, bodyLen: 40, bodyDia: 24.8, wall: 0.3, boatLen: 0, boatAft: 24.8, noseLen: 10, finNum: 3, finThick: 3, finRoot: 5, finTip: 2, finSpan: 2.5, finSweep: 1.5, finOff: 0, cd: 0.75, payMass: 5, payPos: 10, recDia: 30, drogueDia: 10, mainAlt: 100, wind: 0, railLen: 100, manMass: 50, manCom: 25, recEvent: 'apogee', dualDeploy: false };
+            Object.keys(paramConfig).forEach(key => updateSliderBounds(key));
             
-            document.getElementById('flight-hud').style.opacity = '1';
-            const phaseEl = document.getElementById('tele-phase');
-            phaseEl.innerText = "ASCENT";
-            phaseEl.className = "text-xs font-black tracking-[0.2em] uppercase text-orange-500";
+            const sv = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            sv('i-noseType', 'ogive'); sv('i-motor', 'C6-5'); sv('i-cluster', 1); sv('i-recType', 'parachute'); sv('i-recEvent', 'apogee'); sv('i-finMat', 'plywood'); sv('i-colBody', '#e2e8f0'); sv('i-colNose', '#EF4444'); sv('i-colFins', '#EF4444'); sv('i-material', 'cardboard'); 
             
-            isSimulating = true;
-            flightPhase = "ASCENT";
-            parachuteMesh.visible = false;
-            simTime = 0; posX = 0; posY = 0; velX = 0; velY = 0; pitchAngle = 0; pitchRate = 0;
-            trailPoints = [];
-            lastFrameTime = performance.now();
-            rocketGroup.position.set(0, 0.5, 0); 
-            rocketGroup.rotation.z = 0;
+            const ddToggle = document.getElementById('i-dualDeploy');
+            if(ddToggle) ddToggle.checked = false;
+            
+            if(isCustomModel) resetToDefaultMesh(); else updateAll(); showToast("Design reset.", "info"); 
         }
 
-        // --- NEW ARCHITECTURE: SEPARATING MATH FROM RENDER ---
-        
-        function updatePhysics(dt) {
-            // This math now runs at micro-step speeds to ensure stability at Max-Q
-            simTime += dt;
+        function resetAI() { hideEl('ai-output'); hideEl('btn-apply-opt'); document.getElementById('ai-report').innerHTML = ""; document.getElementById('ai-reasoning').innerHTML = ""; document.getElementById('ai-compare').innerHTML = ""; pendingOptimizations = null; showToast("AI history cleared.", "info"); }
 
-            let currentPropMass = activeMotor.propMass;
-            let currentThrust = 0;
-            if (simTime < activeMotor.burnTime) {
-                currentThrust = activeMotor.thrust;
-                currentPropMass = activeMotor.propMass * (1 - (simTime / activeMotor.burnTime));
-            } else { currentPropMass = 0; }
-            const totalMass = mathData.dryMass + activeMotor.totalMass - activeMotor.propMass + currentPropMass;
-
-            if (flightPhase === "ASCENT" && velY < 0 && posY > 5) {
-                flightPhase = "DESCENT";
-                parachuteMesh.visible = true;
-                const phaseEl = document.getElementById('tele-phase');
-                phaseEl.innerText = "DESCENT";
-                phaseEl.className = "text-xs font-black tracking-[0.2em] uppercase text-yellow-400";
-                showToast("Apogee reached! Deploying Parachute.", "success");
+        async function runAITask(taskType) {
+            let outId = 'ai-output', reportId = 'ai-report', reasoningId = 'ai-reasoning', applyBtnId = 'btn-apply-opt'; 
+            if (taskType === 'postflight') { 
+                outId = 'postflight-ai-output'; 
+                reportId = 'postflight-ai-report'; 
+                reasoningId = 'postflight-ai-reasoning';
+                applyBtnId = 'btn-apply-postflight';
             }
-
-            const windSpeed = design.wind; 
-            const relativeVelX = velX - windSpeed;
-            const relativeVelY = velY;
-            const dynamicPressure = 0.5 * 1.225 * (Math.pow(relativeVelX, 2) + Math.pow(relativeVelY, 2));
-
-            let dragForce = 0;
             
-            if (flightPhase === "ASCENT") {
-                let angleOfAttack = 0;
-                if (relativeVelY > 0.1) {
-                    const flightPathAngle = Math.atan2(relativeVelX, relativeVelY);
-                    angleOfAttack = pitchAngle - flightPathAngle; 
-                }
-
-                const refArea = Math.PI * Math.pow((design.bodyDia/1000)/2, 2);
-                const normalForce = 2.0 * angleOfAttack * dynamicPressure * refArea; 
-                const cpDistance = (mathData.COP - mathData.COM) / 100; 
-                const restoringTorque = -normalForce * cpDistance;
-                
-                const totalL_meters = (design.bodyLen + design.noseLen) / 100;
-                
-                // MASSIVELY INCREASED DAMPING to instantly kill oscillations
-                const dampingTorque = -500.0 * pitchRate * (dynamicPressure + 0.1) * refArea * Math.pow(totalL_meters, 2);
-                
-                const angularAccel = (restoringTorque + dampingTorque) / mathData.momentOfInertia;
-                
-                pitchRate += angularAccel * dt;
-                
-                // Hard clamp on rotation speed as a final safety net
-                if (pitchRate > 5) pitchRate = 5;
-                if (pitchRate < -5) pitchRate = -5;
-                
-                pitchAngle += pitchRate * dt;
-
-                dragForce = dynamicPressure * 0.6 * refArea; 
+            const out = document.getElementById(outId), reportEl = document.getElementById(reportId), reasoningEl = document.getElementById(reasoningId), applyBtn = document.getElementById(applyBtnId);
+            
+            if(out) out.classList.remove('hidden'); 
+            if(applyBtn) applyBtn.classList.add('hidden'); 
+            pendingOptimizations = null; 
+            
+            if(reportEl) reportEl.innerHTML = '<div class="loading-shimmer h-6 w-full rounded-md border border-white/5 py-4"></div>';
+            if(reasoningEl) reasoningEl.innerHTML = ''; 
+            
+            if (taskType !== 'postflight') {
+                const aic = document.getElementById('ai-compare'); if(aic) aic.innerHTML = '';
             } else {
-                const chuteRadiusMeters = (design.chuteDia / 100) / 2;
-                const chuteArea = Math.PI * Math.pow(chuteRadiusMeters, 2);
-                dragForce = dynamicPressure * 1.5 * chuteArea; 
-                
-                pitchAngle *= 0.95; 
-                pitchRate = 0;
+                const reasCont = document.getElementById('postflight-reasoning-container');
+                if(reasCont) reasCont.classList.add('hidden');
             }
 
-            const dragX = dragForce * Math.sin(Math.atan2(relativeVelX, relativeVelY));
-            const dragY = dragForce * Math.cos(Math.atan2(relativeVelX, relativeVelY));
+            let req = { contents: [{ parts: [{ text: "" }] }] };
+            const specs = JSON.stringify({design, results, livePredictions});
 
-            const thrustX = currentThrust * Math.sin(pitchAngle);
-            const thrustY = currentThrust * Math.cos(pitchAngle);
+            if (taskType === 'opt_all') {
+                req.contents[0].parts[0].text = `Rocket specs: ${specs}. Holistically optimize the entire rocket design to achieve maximum altitude while maintaining a safe stability margin between 1.5 and 2.0 calibers and avoiding fin flutter. Adjust fin geometry, body length, wall thickness, boattail, and payload. Return JSON.`;
+                req.generationConfig = { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { report: { type: "STRING" }, reasoning: { type: "STRING" }, before_after: { type: "STRING" }, optimizations: { type: "OBJECT", properties: { finRoot: { type: "NUMBER" }, finTip: { type: "NUMBER" }, finSpan: { type: "NUMBER" }, finSweep: { type: "NUMBER" }, payMass: { type: "NUMBER" }, bodyLen: { type: "NUMBER" }, wall: { type: "NUMBER" }, boatLen: { type: "NUMBER" } } } } } };
+            } else if (taskType === 'opt_alt') {
+                req.contents[0].parts[0].text = `Rocket specs: ${specs}. Adjust only finSpan, finRoot, or payMass to MAXIMIZE apogee while ensuring stability margin stays exactly between 1.2 and 1.8. Return JSON.`;
+                req.generationConfig = { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { report: { type: "STRING" }, reasoning: { type: "STRING" }, before_after: { type: "STRING" }, optimizations: { type: "OBJECT", properties: { finRoot: { type: "NUMBER" }, finSpan: { type: "NUMBER" }, payMass: { type: "NUMBER" } } } } } };
+            } else if (taskType === 'opt_stab') {
+                req.contents[0].parts[0].text = `Rocket specs: ${specs}. Current margin is ${results.margin.toFixed(2)}. Adjust fin geometry and payload mass to achieve exactly 1.5 calibers of stability margin. Return JSON.`;
+                req.generationConfig = { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { report: { type: "STRING" }, reasoning: { type: "STRING" }, before_after: { type: "STRING" }, optimizations: { type: "OBJECT", properties: { finRoot: { type: "NUMBER" }, finTip: { type: "NUMBER" }, finSpan: { type: "NUMBER" }, finSweep: { type: "NUMBER" }, payMass: { type: "NUMBER" } } } } } };
+            } else if (taskType === 'min_drag') {
+                req.contents[0].parts[0].text = `Rocket specs: ${specs}. Optimize fin geometry and boattail for minimum drag profile while keeping margin > 1.0 and keeping Vf high. Suggest modifications. Return JSON.`;
+                req.generationConfig = { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { report: { type: "STRING" }, reasoning: { type: "STRING" }, before_after: { type: "STRING" }, optimizations: { type: "OBJECT", properties: { finRoot: { type: "NUMBER" }, finTip: { type: "NUMBER" }, finSpan: { type: "NUMBER" }, finSweep: { type: "NUMBER" }, boatLen: { type: "NUMBER" }, boatAft: { type: "NUMBER" } } } } } };
+            } else if (taskType === 'postflight') {
+                const isFailure = simState.status === 'failure';
+                req.contents[0].parts[0].text = `Analyze flight: Design: ${specs}. Flight Results: ${JSON.stringify({...flightProfile, totalTime: simState.time, status: simState.status, reason: simState.failReason})}. ${isFailure ? 'Diagnose the exact reason for failure. Provide exact numerical changes to parameters (e.g., wall thickness, mass, fin span, body length, fin thickness) to fix it and make it survive.' : 'Provide a brief mission success report and suggest minor tweaks for better performance if any.'} Return JSON.`;
+                req.generationConfig = { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { report: { type: "STRING" }, reasoning: { type: "STRING" }, optimizations: { type: "OBJECT", properties: { finRoot: { type: "NUMBER" }, finTip: { type: "NUMBER" }, finSpan: { type: "NUMBER" }, finSweep: { type: "NUMBER" }, payMass: { type: "NUMBER" }, wall: { type: "NUMBER" }, bodyLen: { type: "NUMBER" }, finThick: { type: "NUMBER" } } } } } };
+            }
 
-            const accelX = (thrustX - dragX) / totalMass;
-            const accelY = (thrustY - dragY - (totalMass * 9.81)) / totalMass;
+            const execute = async () => {
+                let retries = 0;
+                const delays = [1000, 2000, 4000, 8000, 16000];
+                while (retries <= 5) {
+                    try {
+                        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(req) 
+                        });
+                        const d = await res.json();
+                        if (!res.ok) throw new Error(d.error?.message || "API Error");
+                        return d.candidates[0].content.parts[0].text;
+                    } catch (err) {
+                        if (retries === 5) throw err;
+                        await new Promise(r => setTimeout(r, delays[retries]));
+                        retries++;
+                    }
+                }
+            };
 
-            velX += accelX * dt;
-            velY += accelY * dt;
-            posX += velX * dt;
-            posY += velY * dt;
+            try {
+                const t = await execute();
+                const p = JSON.parse(t); 
+                
+                if(reportEl) reportEl.innerText = p.report || "Analysis complete."; 
+                if(reasoningEl && p.reasoning) {
+                    reasoningEl.innerText = p.reasoning;
+                    if (taskType === 'postflight') {
+                        const reasCont = document.getElementById('postflight-reasoning-container');
+                        if(reasCont) reasCont.classList.remove('hidden');
+                    }
+                }
+                
+                if (taskType !== 'postflight') {
+                    const aic = document.getElementById('ai-compare'); 
+                    if(aic) aic.innerText = p.before_after || "";
+                }
+                
+                if (p.optimizations && Object.keys(p.optimizations).length > 0 && applyBtn) { 
+                    pendingOptimizations = p.optimizations; 
+                    applyBtn.classList.remove('hidden'); 
+                } 
+            } catch (e) { 
+                if(reportEl) reportEl.innerText = "Error connecting to AI: " + e.message; 
+            }
         }
 
-        function physicsLoop(currentTime) {
-            requestAnimationFrame(physicsLoop);
-            controls.update();
-            renderer.render(scene, camera);
-
-            if (!isSimulating) return;
-
-            let frameDt = (currentTime - lastFrameTime) / 1000; 
-            if(frameDt > 0.1) frameDt = 0.1; // Max 100ms per frame jump
-            lastFrameTime = currentTime;
-
-            // NEW: SUB-STEPPING
-            // Run the physics math 10 times for every 1 time we render the graphics
-            const subSteps = 10;
-            const simDt = frameDt / subSteps;
+        function applyOptimizations() { 
+            if (!pendingOptimizations) return; const o = pendingOptimizations; 
+            if (o.finRoot !== undefined) design.finRoot = o.finRoot; 
+            if (o.finTip !== undefined) design.finTip = o.finTip; 
+            if (o.finSpan !== undefined) design.finSpan = o.finSpan; 
+            if (o.finSweep !== undefined) design.finSweep = o.finSweep; 
+            if (o.finOff !== undefined) design.finOff = o.finOff; 
+            if (o.finThick !== undefined) design.finThick = o.finThick;
+            if (o.cd !== undefined) design.cd = o.cd; 
+            if (o.payMass !== undefined) design.payMass = o.payMass; 
+            if (o.payPos !== undefined) design.payPos = o.payPos; 
+            if (o.wall !== undefined) design.wall = o.wall;
+            if (o.bodyLen !== undefined) design.bodyLen = o.bodyLen;
+            if (o.boatLen !== undefined) design.boatLen = o.boatLen;
+            if (o.boatAft !== undefined) design.boatAft = o.boatAft;
             
-            for(let i = 0; i < subSteps; i++) {
-                updatePhysics(simDt);
-            }
-
-            // Post-Physics Rendering Updates
-            if (posY <= 0 && simTime > 0.5) {
-                posY = 0; velX = 0; velY = 0; pitchRate = 0; isSimulating = false;
-                document.getElementById('tele-phase').innerText = "LANDED";
-                document.getElementById('tele-phase').className = "text-xs font-black tracking-[0.2em] uppercase text-emerald-400";
-                setTimeout(() => document.getElementById('flight-hud').style.opacity = '0', 4000);
-            }
-
-            const totalVel = Math.sqrt(velX*velX + velY*velY);
-            document.getElementById('tele-time').innerText = simTime.toFixed(1);
-            document.getElementById('tele-alt').innerText = posY.toFixed(1);
-            document.getElementById('tele-vel').innerText = totalVel.toFixed(1);
-            
-            const renderY = (posY * 0.1) + 0.5; 
-            rocketGroup.position.set(posX * 0.1, renderY, 0);
-            rocketGroup.rotation.z = -pitchAngle; 
-            
-            camera.position.set(posX * 0.1, renderY + 15, 30);
-            controls.target.set(posX * 0.1, renderY + 5, 0);
-            
-            if(simTime % 0.1 < frameDt) {
-                trailPoints.push(new THREE.Vector3(posX * 0.1, renderY, 0));
-                trailGeom.setFromPoints(trailPoints);
-            }
-
-            comMarker.position.copy(rocketGroup.position);
-            const localCP = new THREE.Vector3(0, -((mathData.COP - mathData.COM)/10), 0);
-            localCP.applyEuler(rocketGroup.rotation);
-            copMarker.position.copy(rocketGroup.position).add(localCP);
+            Object.keys(paramConfig).forEach(key => updateSliderBounds(key));
+            updateAll(); showToast("Fixes Applied! Rocket re-engineered.", "success"); 
+            hideEl('btn-apply-opt'); 
+            hideEl('btn-apply-postflight');
+            document.getElementById('tab-design').click(); 
         }
         
-        window.onload = () => { lucide.createIcons(); initThree(); };
+        function exportRocketSTL(mode) {
+            const d = document.getElementById('stl-dropdown'); if(d) { d.classList.add('hidden'); d.classList.remove('flex'); }
+            if (!rocketGroup || rocketGroup.children.length === 0) { showToast("No model to export.", "error"); return; }
+            showToast(mode === 'single' ? "Compiling High-Res Single STL..." : "Packaging High-Res Parts...", "info");
+            
+            rebuildRocketMesh(true);
+
+            setTimeout(() => {
+                try {
+                    rocketGroup.scale.set(10, 10, 10); rocketGroup.updateMatrixWorld(true);
+                    const exporter = new THREE.STLExporter();
+                    
+                    if (mode === 'single') {
+                        const stlString = exporter.parse(rocketGroup);
+                        const blob = new Blob([stlString], { type: 'text/plain' }); const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a'); link.style.display = 'none'; link.href = url; link.download = 'SiliconLab_Rocket_Full_Scale.stl';
+                        document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+                        showToast("1:1 High-Res STL Downloaded!", "success");
+                    } else {
+                        const zip = new JSZip(); let partNames = ['body_tube', 'nose_cone']; let finCount = 1;
+                        if (design.boatLen > 0) partNames.push('boattail');
+                        
+                        rocketGroup.children.forEach((child, index) => {
+                            if (child.isMesh && child.geometry) {
+                                let stl = exporter.parse(child);
+                                let partName = partNames[index] || `fin_${finCount++}`;
+                                if (isCustomModel) partName = `custom_part_${index}`;
+                                stl = stl.replace(/solid exported/g, `solid ${partName}`);
+                                zip.file(`${partName}.stl`, stl);
+                            }
+                        });
+                        zip.generateAsync({type:"blob"}).then(function(content) {
+                            const url = URL.createObjectURL(content); const link = document.createElement('a'); link.style.display = 'none'; link.href = url; link.download = 'SiliconLab_Rocket_Parts_Scale.zip';
+                            document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+                            showToast("1:1 High-Res ZIP Downloaded!", "success");
+                        });
+                    }
+                } catch (error) { console.error(error); showToast("Export failed.", "error"); } 
+                finally { rocketGroup.scale.set(1, 1, 1); rocketGroup.updateMatrixWorld(true); rebuildRocketMesh(false); }
+            }, 100);
+        }
+
+        function exportCSV() {
+            if(simState.dataLog.length === 0) { showToast("No flight data to export.", "error"); return; }
+            let csv = "Time (s),Altitude (m),Velocity (m/s),Acceleration (m/s2),Mach,Thrust (N),Drag (N),Dyn Pressure Q (Pa),Mass (kg)\n";
+            simState.dataLog.forEach(r => { csv += `${r.t.toFixed(3)},${r.a.toFixed(2)},${r.v.toFixed(2)},${r.acc.toFixed(2)},${r.mach.toFixed(3)},${r.th.toFixed(2)},${r.d.toFixed(2)},${r.q.toFixed(2)},${r.m.toFixed(3)}\n`; });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'Flight_Telemetry.csv'; a.click(); showToast("CSV Exported", "success");
+        }
+        
+        function importSTL(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const geo = new THREE.STLLoader().parse(e.target.result); geo.computeBoundingBox(); let b = geo.boundingBox; const [sX, sY, sZ] = [b.max.x-b.min.x, b.max.y-b.min.y, b.max.z-b.min.z]; if (sZ > sY) geo.rotateX(-Math.PI/2); geo.translate(-(b.max.x+b.min.x)/2, -b.min.y, -(b.max.z+b.min.z)/2); design.bodyLen = Math.max(10, (b.max.y-b.min.y)/10); design.bodyDia = Math.max(10, Math.max(b.max.x-b.min.x, b.max.z-b.min.z)); updateSliderBounds('bodyLen'); updateSliderBounds('bodyDia'); while(rocketGroup.children.length > 0) rocketGroup.remove(rocketGroup.children[0]); const stl = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: design.cBody, metalness: 0.3, roughness: 0.5 })); stl.scale.set(0.1, 0.1, 0.1); rocketGroup.add(stl); isCustomModel = true; showEl('custom-model-badge'); updateAll(); resetCameraView(); showToast("STL Loaded.", "success"); } catch (err) { showToast("STL Failed.", "error"); } }; reader.readAsArrayBuffer(file); event.target.value = ''; }
+        function resetToDefaultMesh() { isCustomModel = false; hideEl('custom-model-badge'); rebuildRocketMesh(); resetCameraView(); showToast("Reverted.", "info"); }
+        function switchTab(tab) { currentTab = tab; ['design', 'ai', 'flight'].forEach(t => { const btn = document.getElementById(`tab-${t}`); if (t === tab) { btn.className = 'flex-1 text-[10px] font-bold uppercase tracking-widest py-2 rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-all flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(59,130,246,0.1)]'; } else { btn.className = 'flex-1 text-[10px] font-bold uppercase tracking-widest py-2 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/5 border border-transparent transition-all flex items-center justify-center gap-1.5'; } document.getElementById(`${t}-panel`).classList.toggle('hidden', t !== tab); }); }
+        function onWindowResize() { const c = document.getElementById('canvas-container'); if(!camera || !renderer) return; camera.aspect = c.clientWidth / c.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(c.clientWidth, c.clientHeight); }
+        window.onload = () => { lucide.createIcons(); initUIParams(); initDraggable(); setTimeout(initThree, 150); };
     </script>
 </body>
 </html>
