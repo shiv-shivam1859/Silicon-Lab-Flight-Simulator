@@ -1,18 +1,42 @@
-# Silicon-Lab-Flight-Simulator 🚀
-*A web-based 3D aerospace engineering visualizer.*
+Silicon Lab Flight Simulator 🚀
 
-I am building this simulator as a personal project to bridge the gap between computer science and aerospace engineering. My goal is to eventually create a full flight physics simulator, but right now, it is a 3D parametric visualizer with a built-in math engine.
+A web-native 6-DOF aerospace simulation engine and parametric rocket design suite.
 
-## Important 📢
-This project was started before being uploaded to GitHub. I have been documenting its progress independently, so some commits may have adjusted timestamps to reflect the original development timeline. Please ignore any inconsistencies in the commit history.
+Silicon Lab Flight Simulator is an advanced aerospace engineering platform designed to bridge theoretical physics and practical rocket design. It goes beyond basic 3D visualization by implementing real aerodynamic models, numerical solvers, and AI-assisted engineering workflows to simulate realistic flight behavior and structural constraints.
 
-## Features
-* **Real-time 3D Rendering:** Generates accurate 3D meshes of rocket airframes, nose cones, and fins using Three.js, which updates instantly as parameters change.
-* **Aerodynamic Math Engine:** Live algebraic calculations of the Center of Mass (COM), Center of Pressure (COP), and Static Stability Margins using the Barrowman equations.
-* **STL Export:** Ability to export the generated 3D models as `.stl` files for actual 3D printing.
+⚠️ Important Notice
 
-## Tech Stack
-* **Frontend:** HTML5, Vanilla JavaScript
-* **Styling:** Tailwind CSS
-* **3D Graphics:** Three.js
-* **Icons:** Lucide
+This project was initiated prior to being published on GitHub. Development progress was documented independently, and some commits may have modified timestamps to reflect the original timeline.
+
+Core Engineering Capabilities
+🚀 Flight Physics & Aerodynamics
+Implements a 6-DOF physics model with a custom sub-stepped Euler integrator for numerical stability under high dynamic pressure (Max-Q).
+Computes Barrowman stability parameters, including Center of Pressure (CP) and aerodynamic coefficients.
+Models Reynolds-dependent skin friction and transonic drag rise using Mach-based correction factors.
+🧠 AI Engineering Co-Pilot
+Integrated LLM-driven assistant embedded into the design workflow.
+Capable of:
+Optimizing airframe geometry for target apogee
+Maintaining static stability margins
+Diagnosing aerodynamic and structural failure modes
+🧱 Structural Integrity Simulation
+Real-time monitoring of material limits under flight conditions
+Detects and simulates:
+Failure due to exceeding dynamic pressure (Max-Q)
+Fin flutter based on material and velocity constraints
+📊 Telemetry & Post-Flight Analysis
+Live flight HUD displaying key parameters
+Generates post-flight datasets and graphs for:
+Altitude
+Velocity
+Acceleration
+🪂 Recovery System Simulation
+Supports dual-deployment recovery systems:
+Drogue parachute at apogee
+Main parachute at configurable altitude
+Includes crosswind drift and descent modeling
+🧩 CAD & Rapid Prototyping
+Import custom .stl geometries
+Export parameterized rocket designs as multi-part .zip packages ready for 3D printing
+
+As a result, the commit history may appear non-linear. This does not affect the authenticity or continuity of development.
