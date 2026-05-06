@@ -48,7 +48,7 @@
         .modern-select option { background-color: #1e293b; color: #f8fafc; }
 
         /* Custom Color Picker */
-        input[type="color"] { appearance: none; -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.1); }
+        input[type="color"] { -webkit-appearance: none; border: none; width: 20px; height: 20px; padding: 0; cursor: pointer; background: transparent; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.1); }
         input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
         
@@ -66,11 +66,37 @@
         .drag-handle:active { cursor: grabbing; }
 
         input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type=number] { appearance: none; -moz-appearance: textfield; }
+        input[type=number] { -moz-appearance: textfield; }
         
         .status-fail { color: #f87171; text-shadow: 0 0 10px rgba(248,113,113,0.3); }
         .status-warn { color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.3); }
         .status-pass { color: #34d399; text-shadow: 0 0 10px rgba(52,211,153,0.3); }
+
+        /* Light Mode Overrides */
+        body.light-mode { background-color: #f8fafc; color: #0f172a; }
+        body.light-mode #canvas-container { background-color: #f8fafc; }
+        body.light-mode aside { background-color: #ffffff; border-right-color: #e2e8f0; }
+        body.light-mode .glass-panel { background: rgba(0, 0, 0, 0.02); border-color: rgba(0, 0, 0, 0.08); }
+        body.light-mode .glass-hud { background: rgba(255, 255, 255, 0.85); border-color: rgba(0, 0, 0, 0.1); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1); }
+        body.light-mode .recessed-panel { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.05); box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); }
+        body.light-mode .text-white { color: #0f172a !important; }
+        body.light-mode .text-slate-200, body.light-mode .text-slate-300 { color: #334155 !important; }
+        body.light-mode .text-slate-400 { color: #475569 !important; }
+        body.light-mode .text-slate-500 { color: #64748b !important; }
+        body.light-mode .bg-slate-950 { background-color: #ffffff !important; }
+        body.light-mode .bg-slate-900 { background-color: #f8fafc !important; }
+        body.light-mode .bg-slate-800 { background-color: #f1f5f9 !important; }
+        body.light-mode .border-white\/5, body.light-mode .border-white\/10 { border-color: rgba(0,0,0,0.1) !important; }
+        body.light-mode .border-slate-800, body.light-mode .border-slate-700 { border-color: #e2e8f0 !important; }
+        body.light-mode .modern-select { color: #0f172a !important; }
+        body.light-mode .modern-select option { background-color: #ffffff !important; color: #0f172a !important; }
+        body.light-mode .modern-select optgroup { background-color: #f1f5f9 !important; color: #475569 !important; }
+        body.light-mode #toast { background: rgba(255, 255, 255, 0.95); border-color: rgba(0,0,0,0.1); }
+        body.light-mode #toast-msg { color: #0f172a; }
+        body.light-mode .top-right-pill { background-color: rgba(255, 255, 255, 0.85) !important; border-color: rgba(0,0,0,0.1) !important; }
+        body.light-mode .border-div { background-color: #cbd5e1 !important; }
+        body.light-mode .hover\:bg-white\/5:hover { background-color: rgba(0,0,0,0.05) !important; color: #0f172a !important; }
+        body.light-mode .hover\:text-white:hover { color: #0f172a !important; }
     </style>
 </head>
 <body>
@@ -389,9 +415,11 @@
 
         <div id="ui-overlay">
             <!-- Top Right Action Pill -->
-            <div class="absolute top-6 right-6 flex items-center bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-full p-1 shadow-2xl pointer-events-auto z-40">
+            <div class="absolute top-6 right-6 flex items-center bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-full p-1 shadow-2xl pointer-events-auto z-40 top-right-pill">
+                <button onclick="toggleTheme()" class="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"><i data-lucide="sun" id="theme-toggle-icon" class="w-3.5 h-3.5"></i> Theme</button>
+                <div class="w-px h-4 bg-slate-700 mx-1 border-div"></div>
                 <button onclick="toggleHUD()" class="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"><i data-lucide="layout-template" class="w-3.5 h-3.5"></i> HUD</button>
-                <div class="w-px h-4 bg-slate-700 mx-1"></div>
+                <div class="w-px h-4 bg-slate-700 mx-1 border-div"></div>
                 <input type="file" id="stl-upload" accept=".stl" class="hidden" onchange="importSTL(event)">
                 <button onclick="document.getElementById('stl-upload').click()" class="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"><i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i> Import</button>
                 
@@ -401,6 +429,7 @@
                         <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> Export 3D <i data-lucide="chevron-down" class="w-3 h-3 ml-1 opacity-70"></i>
                     </button>
                     <div id="stl-dropdown" class="absolute top-full right-0 mt-2 w-48 glass-hud rounded-xl hidden flex-col overflow-hidden z-50 py-1">
+                        <button onclick="exportSpecSheet()" class="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 flex items-center gap-2"><i data-lucide="file-text" class="w-3.5 h-3.5 text-emerald-400"></i> Spec Sheet (.txt)</button>
                         <button onclick="exportRocketSTL('single')" class="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 flex items-center gap-2"><i data-lucide="box" class="w-3.5 h-3.5 text-blue-400"></i> Single Solid (.stl)</button>
                         <button onclick="exportRocketSTL('multipart')" class="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i> Split Parts (.zip)</button>
                     </div>
@@ -479,6 +508,8 @@
             'G80-7': { thrust: 80.0, burn: 1.5, mass: 135, propMass: 65, delay: 7 },
             'H115-10': { thrust: 115.0, burn: 2.0, mass: 320, propMass: 150, delay: 10 }
         };
+
+        let activeMotor = motors["C6-5"];
 
         const finMaterials = {
             'balsa': { G: 140000000, density: 160 }, 
@@ -589,12 +620,38 @@
 
         let graphMaxAlt = 50, graphMaxTime = 3;
 
-        let scene, camera, renderer, rocketGroup, rocket2D, pad, grid, chuteMesh, controls;
+        let scene, camera, renderer, rocketGroup, rocket2D, pad, grid, ground, chuteMesh, controls;
         let comMarker, copMarker, trailLine, graphAxesLine, graphMinorAxesLine, explodeParticles = [];
         let particles = [], trailPoints = [];
         let yTickEls = [], xTickEls = [];
         let hudVisible = false;
         let currentGraphMode = 'altitude';
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            
+            if (scene) {
+                scene.background = new THREE.Color(isLight ? 0xf8fafc : 0x020617);
+                if (scene.fog) scene.fog.color = new THREE.Color(isLight ? 0xf8fafc : 0x020617);
+                
+                if (grid) {
+                    scene.remove(grid);
+                    grid = new THREE.GridHelper(5000, 500, isLight ? 0x94a3b8 : 0x1e293b, isLight ? 0xcbd5e1 : 0x0f172a);
+                    grid.position.y = 0.01;
+                    scene.add(grid);
+                }
+                if (ground) {
+                    ground.material.color.setHex(isLight ? 0xe2e8f0 : 0x0f172a);
+                }
+            }
+            
+            const themeBtn = document.getElementById('theme-toggle-icon');
+            if(themeBtn) {
+                themeBtn.setAttribute('data-lucide', isLight ? 'moon' : 'sun');
+                lucide.createIcons();
+            }
+        }
 
         function toggleStlDropdown(e) {
             e.stopPropagation();
@@ -866,24 +923,53 @@
                 const container = document.getElementById('canvas-container'), canvas = document.getElementById('gl-canvas');
                 renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
                 renderer.setSize(container.clientWidth, container.clientHeight); renderer.setPixelRatio(window.devicePixelRatio);
-                scene = new THREE.Scene(); scene.background = new THREE.Color(0x020617);
+                scene = new THREE.Scene(); 
+                
+                const isLight = document.body.classList.contains('light-mode');
+                scene.background = new THREE.Color(isLight ? 0xf8fafc : 0x020617);
+                
+                scene.fog = new THREE.FogExp2(isLight ? 0xf8fafc : 0x020617, 0.005);
+
                 camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 20000);
-                scene.add(new THREE.AmbientLight(0xffffff, 0.6)); const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(20, 100, 20); scene.add(dirLight);
                 
-                grid = new THREE.GridHelper(5000, 500, 0x1e293b, 0x0f172a); scene.add(grid);
-                pad = new THREE.Mesh(new THREE.CylinderGeometry(15, 20, 2, 32), new THREE.MeshStandardMaterial({color: 0x334155, roughness: 0.9})); pad.position.y = -1; scene.add(pad);
+                scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); 
+                dirLight.position.set(50, 100, 50); 
+                scene.add(dirLight);
                 
-                controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 + 0.1;
+                ground = new THREE.Mesh(
+                    new THREE.PlaneGeometry(2000, 2000), 
+                    new THREE.MeshStandardMaterial({color: isLight ? 0xe2e8f0 : 0x0f172a, roughness: 0.8, metalness: 0.2})
+                );
+                ground.rotation.x = -Math.PI / 2;
+                scene.add(ground);
+
+                pad = new THREE.Mesh(
+                    new THREE.CylinderGeometry(5, 5.5, 0.5, 32),
+                    new THREE.MeshStandardMaterial({color: 0x334155, roughness: 0.3, metalness: 0.8})
+                );
+                pad.position.y = 0.25;
+                scene.add(pad);
+
+                grid = new THREE.GridHelper(5000, 500, isLight ? 0x94a3b8 : 0x1e293b, isLight ? 0xcbd5e1 : 0x0f172a);
+                grid.position.y = 0.01;
+                scene.add(grid);
                 
-                trailLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x0ea5e9, transparent: true, opacity: 0.8, linewidth: 2 })); scene.add(trailLine);
+                controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 - 0.05; 
+
+                const markerGeo = new THREE.SphereGeometry(1, 16, 16);
+                comMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0x3b82f6})); scene.add(comMarker);
+                copMarker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({color: 0xef4444})); scene.add(copMarker);
+
+                trailGeom = new THREE.BufferGeometry();
+                trailLine = new THREE.Line(trailGeom, new THREE.LineBasicMaterial({color: 0x0ea5e9, opacity: 0.5, transparent: true}));
+                scene.add(trailLine);
                 
-                // Professional Industry Grid Look (Distinct Major/Minor)
                 graphAxesLine = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.5 })); scene.add(graphAxesLine); graphAxesLine.visible = false;
                 graphMinorAxesLine = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.3 })); scene.add(graphMinorAxesLine); graphMinorAxesLine.visible = false;
 
                 rocketGroup = new THREE.Group(); scene.add(rocketGroup);
                 
-                // Replaced rocket polygon with professional diamond chart-marker
                 const shape = new THREE.Shape(); shape.moveTo(0, 2); shape.lineTo(2, 0); shape.lineTo(0, -2); shape.lineTo(-2, 0); shape.lineTo(0, 2);
                 rocket2D = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({color: 0x22d3ee})); scene.add(rocket2D); rocket2D.visible = false;
 
@@ -891,7 +977,8 @@
                 chuteMesh.position.y = 20; chuteMesh.visible = false; rocketGroup.add(chuteMesh);
 
                 window.addEventListener('resize', onWindowResize);
-                updateAll(); resetCameraView(); initDraggable(); initGraphLabels(); animate();
+                updateMotorSpecs(); updateAll();
+                resetCameraView(); initDraggable(); initGraphLabels(); animate();
             } catch (e) { 
                 console.error("Engine Initialization Error:", e);
                 document.getElementById('canvas-container').innerHTML = `<div class="p-8 text-red-400 font-mono text-sm">Initialization Error: ${e.message}<br><br>Please check console.</div>`; 
@@ -1676,8 +1763,13 @@
             }
         }
 
+        function updateMotorSpecs() {
+            activeMotor = motors[document.getElementById('i-motor')?.value || 'C6-5'] || motors['C6-5'];
+        }
+
         function updateAll() { 
             syncInputsToState(); 
+            updateMotorSpecs();
             calculateBarrowman(); 
             fastSimulate(); 
             updateLiveUI();
@@ -1856,6 +1948,80 @@
                 } catch (error) { console.error(error); showToast("Export failed.", "error"); } 
                 finally { rocketGroup.scale.set(1, 1, 1); rocketGroup.updateMatrixWorld(true); rebuildRocketMesh(false); }
             }, 100);
+        }
+
+        function exportSpecSheet() {
+            const d = document.getElementById('stl-dropdown'); if(d) { d.classList.add('hidden'); d.classList.remove('flex'); }
+            
+            // Re-calculate one final time to ensure live data is accurate
+            fastSimulate();
+            
+            const totalLen = design.noseLen + design.bodyLen + design.boatLen;
+            const motorData = motors[design.motor];
+            
+            let sheet = `==================================================\n`;
+            sheet += `      SILICON LAB - AIRFRAME SPECIFICATION\n`;
+            sheet += `==================================================\n\n`;
+            
+            sheet += `[ FLIGHT PREDICTIONS ]\n`;
+            sheet += `Est. Apogee:       ${livePredictions.apogee.toFixed(1)} m\n`;
+            sheet += `Max Velocity:      ${livePredictions.maxVel.toFixed(1)} m/s\n`;
+            sheet += `Max Dynamic Pres:  ${(livePredictions.maxQ / 1000).toFixed(1)} kPa\n`;
+            sheet += `Stability Margin:  ${results.margin.toFixed(2)} calibers\n\n`;
+
+            sheet += `[ AIRFRAME GEOMETRY ]\n`;
+            sheet += `Total Length:      ${totalLen.toFixed(1)} cm\n`;
+            sheet += `Body Diameter:     ${design.bodyDia.toFixed(1)} mm\n`;
+            sheet += `Wall Thickness:    ${design.wall.toFixed(1)} cm\n`;
+            sheet += `Body Material:     ${document.getElementById('i-material').options[document.getElementById('i-material').selectedIndex].text}\n\n`;
+
+            sheet += `[ NOSE CONE ]\n`;
+            sheet += `Profile:           ${document.getElementById('i-noseType').options[document.getElementById('i-noseType').selectedIndex].text}\n`;
+            sheet += `Length:            ${design.noseLen.toFixed(1)} cm\n\n`;
+
+            sheet += `[ FIN ASSEMBLY ]\n`;
+            sheet += `Fin Count:         ${design.finNum}\n`;
+            sheet += `Fin Material:      ${document.getElementById('i-finMat').options[document.getElementById('i-finMat').selectedIndex].text}\n`;
+            sheet += `Root Chord:        ${design.finRoot.toFixed(1)} cm\n`;
+            sheet += `Tip Chord:         ${design.finTip.toFixed(1)} cm\n`;
+            sheet += `Span (Height):     ${design.finSpan.toFixed(1)} cm\n`;
+            sheet += `Sweep Angle:       ${design.finSweep.toFixed(1)} cm\n`;
+            sheet += `Thickness:         ${design.finThick.toFixed(1)} mm\n\n`;
+
+            sheet += `[ MASS & PROPULSION ]\n`;
+            sheet += `Total Liftoff Mass:${results.mass.toFixed(1)} g\n`;
+            sheet += `Payload Mass:      ${design.payMass.toFixed(1)} g\n`;
+            sheet += `Motor Type:        ${design.motor} (x${design.cluster})\n`;
+            sheet += `Total Avg Thrust:  ${(motorData.thrust * design.cluster).toFixed(1)} N\n`;
+            sheet += `Burn Time:         ${motorData.burn.toFixed(1)} s\n\n`;
+
+            sheet += `[ RECOVERY SYSTEM ]\n`;
+            if (design.dualDeploy) {
+                sheet += `Mode:              Dual Deployment\n`;
+                sheet += `Drogue Chute:      ${design.drogueDia.toFixed(1)} cm (Deploys @ Apogee)\n`;
+                sheet += `Main Chute:        ${design.recDia.toFixed(1)} cm (Deploys @ ${design.mainAlt.toFixed(1)} m)\n`;
+            } else {
+                sheet += `Mode:              Single Stage\n`;
+                sheet += `Mechanism:         ${document.getElementById('i-recType').options[document.getElementById('i-recType').selectedIndex].text}\n`;
+                sheet += `Main Diameter:     ${design.recDia.toFixed(1)} cm\n`;
+                sheet += `Trigger:           ${document.getElementById('i-recEvent').options[document.getElementById('i-recEvent').selectedIndex].text}\n`;
+            }
+            
+            sheet += `\n==================================================\n`;
+            sheet += `Generated by Silicon Lab Flight Simulator v2.1.0\n`;
+            sheet += `==================================================\n`;
+
+            const blob = new Blob([sheet], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.style.display = 'none';
+            link.href = url;
+            link.download = 'SiliconLab_Production_Spec.txt';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast("Spec Sheet Downloaded", "success");
         }
 
         function exportCSV() {

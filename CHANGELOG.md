@@ -2,6 +2,12 @@
 
 I started this project in the summer of 2025 to teach myself complex aerodynamics, physics programming, and Three.js. This log tracks my progress, the physics bugs I've fought, and the features I've added.
 
+# Silicon Lab Flight Simulator 🚀
+
+### [2.1.0] - 06/05/2026 (Production Spec Exporter)
+- Added a **"Spec Sheet (.txt)"** generator to the Export menu.
+- Engineers can now instantly download a fully formatted Bill of Materials (BOM) containing precise airframe dimensions, material selections, and predicted flight parameters (Apogee, Max-Q, Mach) to share with production teams.
+
 ## Phase 6 — The Complete Package
 ### [2.0.0] - 16/04/2026 (AI Assistant, Transonic Aero & Pro UI)
 - **MASSIVE REWRITE:** Graduated the visualizer into a professional aerospace suite. Split the UI into three dedicated workspaces: Engineering, AI Lab, and Simulation.
